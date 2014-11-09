@@ -77,27 +77,36 @@ func resourceVirtualMachineCreate(d *schema.ResourceData, meta interface{}) erro
 
 	zoneid := d.Get("zone_id").(string)
 	if zoneid == "" {
-		zoneid = zoneNameToID(config.client, d.Get("zone_name").(string))
+		zoneid, err := zoneNameToID(config.client, d.Get("zone_name").(string))
+		if err != nil {
+			return err
+		}
 		if zoneid == "" {
-			return fmt.Errorf("Error zone is not properly set")
+			return fmt.Errorf("zone_id is empty")
 		}
 	}
 
 	serviceofferingid := d.Get("serviceoffering_id").(string)
 	if serviceofferingid == "" {
-		serviceofferingid = serviceofferingNameToID(
+		serviceofferingid, err := serviceofferingNameToID(
 			config.client, d.Get("serviceoffering_name").(string))
+		if err != nil {
+			return err
+		}
 		if serviceofferingid == "" {
-			return fmt.Errorf("Error serviceoffering is not properly set")
+			return fmt.Errorf("serviceoffering_id is empty")
 		}
 	}
 
 	templateid := d.Get("template_id").(string)
 	if templateid == "" {
-		templateid = templateNameToID(
+		templateid, err := templateNameToID(
 			config.client, d.Get("template_name").(string))
+		if err != nil {
+			return err
+		}
 		if templateid == "" {
-			return fmt.Errorf("Error template is not properly set")
+			return fmt.Errorf("template_id is empty")
 		}
 	}
 

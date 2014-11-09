@@ -26,7 +26,10 @@ func Provider() terraform.ResourceProvider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
-			"cloudstack_virtualmachine": resourceVirtualMachine(),
+			"cloudstack_firewall_rule":       resourceFirewallRule(),
+			"cloudstack_ipaddress":           resourceIpAddress(),
+			"cloudstack_portforwarding_rule": resourcePortForwardingRule(),
+			"cloudstack_virtualmachine":      resourceVirtualMachine(),
 		},
 
 		ConfigureFunc: providerConfigure,

@@ -1,6 +1,8 @@
 package cloudstack
 
 import (
+	"fmt"
+	"hash/fnv"
 	"log"
 
 	"github.com/atsaki/golang-cloudstack-library"
@@ -56,4 +58,10 @@ func templateNameToID(client *cloudstack.Client, name string) string {
 		log.Fatalf("Error templateNameToID '%s': Multiple items found", name)
 	}
 	return templates[0].Id.String
+}
+
+func hash(v interface{}) int {
+	h := fnv.New32a()
+	h.Write([]byte(fmt.Sprint(v)))
+	return int(h.Sum32())
 }

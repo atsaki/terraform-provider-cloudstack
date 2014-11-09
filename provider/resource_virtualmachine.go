@@ -16,25 +16,57 @@ func resourceVirtualMachine() *schema.Resource {
 		Delete: resourceVirtualMachineDelete,
 
 		Schema: map[string]*schema.Schema{
+			"zone_id": &schema.Schema{
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+			},
 			"zone_name": &schema.Schema{
 				Type:     schema.TypeString,
-				Required: true,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+			},
+			"serviceoffering_id": &schema.Schema{
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
 				ForceNew: true,
 			},
 			"serviceoffering_name": &schema.Schema{
 				Type:     schema.TypeString,
-				Required: true,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+			},
+			"template_id": &schema.Schema{
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
 				ForceNew: true,
 			},
 			"template_name": &schema.Schema{
 				Type:     schema.TypeString,
-				Required: true,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+			},
+			"name": &schema.Schema{
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
 				ForceNew: true,
 			},
 			"display_name": &schema.Schema{
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
+			},
+			"keypair": &schema.Schema{
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
 			},
 		},
 	}
@@ -43,19 +75,46 @@ func resourceVirtualMachine() *schema.Resource {
 func resourceVirtualMachineCreate(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
 
-	zoneid := zoneNameToID(
-		config.client, d.Get("zone_name").(string))
-	templateid := templateNameToID(
-		config.client, d.Get("template_name").(string))
-	serviceofferingid := serviceofferingNameToID(
-		config.client, d.Get("serviceoffering_name").(string))
+	zoneid := d.Get("zone_id").(string)
+	if zoneid == "" {
+		zoneid = zoneNameToID(config.client, d.Get("zone_name").(string))
+		if zoneid == "" {
+			return fmt.Errorf("Error zone is not properly set")
+		}
+	}
+
+	serviceofferingid := d.Get("serviceoffering_id").(string)
+	if serviceofferingid == "" {
+		serviceofferingid = serviceofferingNameToID(
+			config.client, d.Get("serviceoffering_name").(string))
+		if serviceofferingid == "" {
+			return fmt.Errorf("Error serviceoffering is not properly set")
+		}
+	}
+
+	templateid := d.Get("template_id").(string)
+	if templateid == "" {
+		templateid = templateNameToID(
+			config.client, d.Get("template_name").(string))
+		if templateid == "" {
+			return fmt.Errorf("Error template is not properly set")
+		}
+	}
 
 	param := cloudstack.DeployVirtualMachineParameter{}
 	param.SetZoneid(zoneid)
 	param.SetTemplateid(templateid)
 	param.SetServiceofferingid(serviceofferingid)
 
-	if d.Get("display_name") != nil {
+	if d.Get("keypair").(string) != "" {
+		param.SetKeypair(d.Get("keypair").(string))
+	}
+
+	if d.Get("name").(string) != "" {
+		param.SetName(d.Get("name").(string))
+	}
+
+	if d.Get("display_name").(string) != "" {
 		param.SetDisplayname(d.Get("display_name").(string))
 	}
 
@@ -74,12 +133,26 @@ func resourceVirtualMachineRead(d *schema.ResourceData, meta interface{}) error 
 
 	param := cloudstack.ListVirtualMachinesParameter{}
 	param.SetId(d.Id())
-	virtualmachine, err := config.client.ListVirtualMachines(param)
+	virtualmachines, err := config.client.ListVirtualMachines(param)
 	if err != nil {
 		return fmt.Errorf("Error list virtualmachine: %s", err)
 	}
 
-	d.Set("display_name", virtualmachine[0].Displayname.String)
+	if len(virtualmachines) == 0 {
+		d.SetId("")
+		return nil
+	}
+
+	virtualmachine := virtualmachines[0]
+
+	d.Set("zone_id", virtualmachine.Zoneid.String)
+	d.Set("zone_name", virtualmachine.Zonename.String)
+	d.Set("serviceoffering_id", virtualmachine.Serviceofferingid.String)
+	d.Set("serviceoffering_name", virtualmachine.Serviceofferingname.String)
+	d.Set("template_id", virtualmachine.Templateid.String)
+	d.Set("template_name", virtualmachine.Templatename.String)
+	d.Set("name", virtualmachine.Name.String)
+	d.Set("display_name", virtualmachine.Displayname.String)
 
 	return nil
 }
@@ -108,6 +181,5 @@ func resourceVirtualMachineDelete(d *schema.ResourceData, meta interface{}) erro
 		return fmt.Errorf("Error destroy virtualmachine: %s", err)
 	}
 
-	d.SetId("")
-	return nil
+	return resourceVirtualMachineRead(d, meta)
 }

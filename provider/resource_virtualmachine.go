@@ -68,6 +68,50 @@ func resourceVirtualMachine() *schema.Resource {
 				Optional: true,
 				ForceNew: true,
 			},
+			"nic": &schema.Schema{
+				Type:     schema.TypeList,
+				Computed: true,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"id": &schema.Schema{
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"gateway": &schema.Schema{
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"ipaddress": &schema.Schema{
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"is_default": &schema.Schema{
+							Type:     schema.TypeBool,
+							Computed: true,
+						},
+						"macaddress": &schema.Schema{
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"netmask": &schema.Schema{
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"network_id": &schema.Schema{
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"traffic_type": &schema.Schema{
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"type": &schema.Schema{
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+					},
+				},
+			},
 		},
 	}
 }
@@ -164,6 +208,22 @@ func resourceVirtualMachineRead(d *schema.ResourceData, meta interface{}) error 
 	d.Set("template_name", virtualmachine.Templatename.String)
 	d.Set("name", virtualmachine.Name.String)
 	d.Set("display_name", virtualmachine.Displayname.String)
+
+	nics := make([]map[string]interface{}, len(virtualmachine.Nic))
+	for i, nic := range virtualmachine.Nic {
+		m := make(map[string]interface{})
+		m["id"] = nic.Id.String
+		m["gateway"] = nic.Gateway.String
+		m["ipaddress"] = nic.Ipaddress.String
+		m["is_default"] = nic.Isdefault.Bool
+		m["macaddress"] = nic.Macaddress.String
+		m["netmask"] = nic.Netmask.String
+		m["network_id"] = nic.Networkid.String
+		m["traffic_type"] = nic.Traffictype.String
+		m["type"] = nic.Type.String
+		nics[i] = m
+	}
+	d.Set("nic", nics)
 
 	return nil
 }

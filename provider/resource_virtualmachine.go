@@ -73,11 +73,13 @@ func resourceVirtualMachine() *schema.Resource {
 }
 
 func resourceVirtualMachineCreate(d *schema.ResourceData, meta interface{}) error {
+
+	var err error
 	config := meta.(*Config)
 
 	zoneid := d.Get("zone_id").(string)
 	if zoneid == "" {
-		zoneid, err := zoneNameToID(config.client, d.Get("zone_name").(string))
+		zoneid, err = zoneNameToID(config.client, d.Get("zone_name").(string))
 		if err != nil {
 			return err
 		}
@@ -88,7 +90,7 @@ func resourceVirtualMachineCreate(d *schema.ResourceData, meta interface{}) erro
 
 	serviceofferingid := d.Get("serviceoffering_id").(string)
 	if serviceofferingid == "" {
-		serviceofferingid, err := serviceofferingNameToID(
+		serviceofferingid, err = serviceofferingNameToID(
 			config.client, d.Get("serviceoffering_name").(string))
 		if err != nil {
 			return err
@@ -100,7 +102,7 @@ func resourceVirtualMachineCreate(d *schema.ResourceData, meta interface{}) erro
 
 	templateid := d.Get("template_id").(string)
 	if templateid == "" {
-		templateid, err := templateNameToID(
+		templateid, err = templateNameToID(
 			config.client, d.Get("template_name").(string))
 		if err != nil {
 			return err

@@ -7,6 +7,7 @@ import (
 
 	"github.com/atsaki/golang-cloudstack-library"
 
+	"github.com/hashicorp/terraform/helper/hashcode"
 	"github.com/hashicorp/terraform/helper/schema"
 )
 
@@ -35,7 +36,9 @@ func resourceFirewallRule() *schema.Resource {
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
-				Set: hash,
+				Set: func(v interface{}) int {
+					return hashcode.String(v.(string))
+				},
 			},
 			"start_port": &schema.Schema{
 				Type:     schema.TypeInt,

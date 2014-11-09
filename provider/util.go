@@ -2,7 +2,6 @@ package cloudstack
 
 import (
 	"fmt"
-	"hash/fnv"
 	"log"
 	"reflect"
 
@@ -77,12 +76,6 @@ func templateNameToID(client *cloudstack.Client, name string) (string, error) {
 		return "", fmt.Errorf("templateNameToID '%s': Multiple items found", name)
 	}
 	return templates[0].Id.String, nil
-}
-
-func hash(v interface{}) int {
-	h := fnv.New32a()
-	h.Write([]byte(fmt.Sprint(v)))
-	return int(h.Sum32())
 }
 
 func filter(xs interface{}, fn func(interface{}) bool) interface{} {

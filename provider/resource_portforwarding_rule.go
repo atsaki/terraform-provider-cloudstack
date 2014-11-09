@@ -7,6 +7,7 @@ import (
 
 	"github.com/atsaki/golang-cloudstack-library"
 
+	"github.com/hashicorp/terraform/helper/hashcode"
 	"github.com/hashicorp/terraform/helper/schema"
 )
 
@@ -50,7 +51,9 @@ func resourcePortForwardingRule() *schema.Resource {
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
-				Set: hash,
+				Set: func(v interface{}) int {
+					return hashcode.String(v.(string))
+				},
 			},
 			"private_end_port": &schema.Schema{
 				Type:     schema.TypeInt,

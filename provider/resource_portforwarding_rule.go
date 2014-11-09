@@ -115,7 +115,16 @@ func resourcePortForwardingRuleRead(d *schema.ResourceData, meta interface{}) er
 	portforwarding_rules, err := config.client.ListPortForwardingRules(param)
 
 	if err != nil {
-		return fmt.Errorf("Error list portforwarding rule: %s", err)
+		param = cloudstack.ListPortForwardingRulesParameter{}
+		portforwarding_rules, err = config.client.ListPortForwardingRules(param)
+		if err != nil {
+			return fmt.Errorf("Failed to list portforwarding rule: %s", err)
+		}
+
+		fn := func(pf interface{}) bool {
+			return pf.(cloudstack.Portforwardingrule).Id.String == d.Id()
+		}
+		portforwarding_rules = filter(portforwarding_rules, fn).([]cloudstack.Portforwardingrule)
 	}
 
 	if len(portforwarding_rules) == 0 {
@@ -158,6 +167,13 @@ func resourcePortForwardingRuleRead(d *schema.ResourceData, meta interface{}) er
 func resourcePortForwardingRuleDelete(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
 
+	if err := resourcePortForwardingRuleRead(d, meta); err != nil {
+		return err
+	}
+
+	if d.Id() == "" {
+		return nil
+	}
 	param := cloudstack.DeletePortForwardingRuleParameter{}
 	param.SetId(d.Id())
 	_, err := config.client.DeletePortForwardingRule(param)

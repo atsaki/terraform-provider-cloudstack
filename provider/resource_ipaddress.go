@@ -73,7 +73,16 @@ func resourceIpAddressRead(d *schema.ResourceData, meta interface{}) error {
 	ipaddresses, err := config.client.ListPublicIpAddresses(param)
 
 	if err != nil {
-		return fmt.Errorf("Error list ipaddress: %s", err)
+		param = cloudstack.ListPublicIpAddressesParameter{}
+		ipaddresses, err = config.client.ListPublicIpAddresses(param)
+		if err != nil {
+			return fmt.Errorf("Failed to list ipaddress: %s", err)
+		}
+
+		fn := func(ip interface{}) bool {
+			return ip.(cloudstack.Publicipaddress).Id.String == d.Id()
+		}
+		ipaddresses = filter(ipaddresses, fn).([]cloudstack.Publicipaddress)
 	}
 
 	if len(ipaddresses) == 0 {
@@ -129,6 +138,14 @@ func resourceIpAddressUpdate(d *schema.ResourceData, meta interface{}) error {
 
 func resourceIpAddressDelete(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
+
+	if err := resourceIpAddressRead(d, meta); err != nil {
+		return err
+	}
+
+	if d.Id() == "" {
+		return nil
+	}
 
 	param := cloudstack.DisassociateIpAddressParameter{}
 	param.SetId(d.Id())

@@ -112,7 +112,16 @@ func resourceFirewallRuleRead(d *schema.ResourceData, meta interface{}) error {
 	firewall_rules, err := config.client.ListFirewallRules(param)
 
 	if err != nil {
-		return fmt.Errorf("Error list firewall rule: %s", err)
+		param = cloudstack.ListFirewallRulesParameter{}
+		firewall_rules, err = config.client.ListFirewallRules(param)
+		if err != nil {
+			return fmt.Errorf("Failed to list firewall rule: %s", err)
+		}
+
+		fn := func(fw interface{}) bool {
+			return fw.(cloudstack.Firewallrule).Id.String == d.Id()
+		}
+		firewall_rules = filter(firewall_rules, fn).([]cloudstack.Firewallrule)
 	}
 
 	if len(firewall_rules) == 0 {
@@ -161,12 +170,19 @@ func resourceFirewallRuleRead(d *schema.ResourceData, meta interface{}) error {
 func resourceFirewallRuleDelete(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
 
+	if err := resourceFirewallRuleRead(d, meta); err != nil {
+		return err
+	}
+
+	if d.Id() == "" {
+		return nil
+	}
+
 	param := cloudstack.DeleteFirewallRuleParameter{}
 	param.SetId(d.Id())
 	_, err := config.client.DeleteFirewallRule(param)
 	if err != nil {
 		return fmt.Errorf("Error delete firewall rule: %s", err)
 	}
-
 	return resourceFirewallRuleRead(d, meta)
 }

@@ -190,7 +190,16 @@ func resourceVirtualMachineRead(d *schema.ResourceData, meta interface{}) error 
 	param.SetId(d.Id())
 	virtualmachines, err := config.client.ListVirtualMachines(param)
 	if err != nil {
-		return fmt.Errorf("Error list virtualmachine: %s", err)
+		param = cloudstack.ListVirtualMachinesParameter{}
+		virtualmachines, err = config.client.ListVirtualMachines(param)
+		if err != nil {
+			return fmt.Errorf("Failed to list virtualmachines: %s", err)
+		}
+
+		fn := func(vm interface{}) bool {
+			return vm.(cloudstack.Virtualmachine).Id.String == d.Id()
+		}
+		virtualmachines = filter(virtualmachines, fn).([]cloudstack.Virtualmachine)
 	}
 
 	if len(virtualmachines) == 0 {
@@ -244,6 +253,14 @@ func resourceVirtualMachineUpdate(d *schema.ResourceData, meta interface{}) erro
 
 func resourceVirtualMachineDelete(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
+
+	if err := resourceVirtualMachineRead(d, meta); err != nil {
+		return err
+	}
+
+	if d.Id() == "" {
+		return nil
+	}
 
 	destroyvirtualmachineparameter := cloudstack.DestroyVirtualMachineParameter{}
 	destroyvirtualmachineparameter.SetId(d.Id())

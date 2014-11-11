@@ -5,6 +5,7 @@ import (
 
 	"github.com/atsaki/golang-cloudstack-library"
 
+	"github.com/hashicorp/terraform/helper/hashcode"
 	"github.com/hashicorp/terraform/helper/schema"
 )
 
@@ -67,6 +68,17 @@ func resourceVirtualMachine() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
+			},
+			"security_groups": &schema.Schema{
+				Type:     schema.TypeSet,
+				Optional: true,
+				ForceNew: true,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
+				Set: func(v interface{}) int {
+					return hashcode.String(v.(string))
+				},
 			},
 			"nic": &schema.Schema{
 				Type:     schema.TypeList,
@@ -173,6 +185,15 @@ func resourceVirtualMachineCreate(d *schema.ResourceData, meta interface{}) erro
 		param.SetDisplayname(d.Get("display_name").(string))
 	}
 
+	if d.Get("security_groups") != nil {
+		tmpSgNames := d.Get("security_groups").(*schema.Set).List()
+		sgNames := make([]string, len(tmpSgNames))
+		for i, sgName := range tmpSgNames {
+			sgNames[i] = sgName.(string)
+		}
+		param.SetSecuritygroupnames(sgNames)
+	}
+
 	virtualmachine, err := config.client.DeployVirtualMachine(param)
 	if err != nil {
 		return fmt.Errorf("Error deploy virtualmachine: %s", err)
@@ -233,6 +254,12 @@ func resourceVirtualMachineRead(d *schema.ResourceData, meta interface{}) error 
 		nics[i] = m
 	}
 	d.Set("nic", nics)
+
+	sgNames := make([]string, len(virtualmachine.Securitygroup))
+	for i, sg := range virtualmachine.Securitygroup {
+		sgNames[i] = sg.Name.String
+	}
+	d.Set("security_groups", nics)
 
 	return nil
 }

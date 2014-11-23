@@ -2,7 +2,6 @@ package cloudstack
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/atsaki/golang-cloudstack-library"
 
@@ -169,9 +168,6 @@ func resourceVirtualMachineCreate(d *schema.ResourceData, meta interface{}) erro
 		}
 	}
 
-	log.Println("ServiceOfferingId", serviceOfferingId)
-	log.Println("templateId", templateId)
-	log.Println("zoneId", zoneId)
 	param := cloudstack.NewDeployVirtualMachineParameter(
 		serviceOfferingId, templateId, zoneId)
 

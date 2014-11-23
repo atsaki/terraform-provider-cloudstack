@@ -18,7 +18,7 @@ func resourceFirewallRule() *schema.Resource {
 		Delete: resourceFirewallRuleDelete,
 
 		Schema: map[string]*schema.Schema{
-			"ipaddress_id": &schema.Schema{
+			"ip_address_id": &schema.Schema{
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
@@ -71,35 +71,33 @@ func resourceFirewallRule() *schema.Resource {
 func resourceFirewallRuleCreate(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
 
+	ipAddressId := d.Get("ip_address_id").(string)
 	protocol := d.Get("protocol").(string)
 
-	param := cloudstack.CreateFirewallRuleParameter{}
-	param.SetIpaddressid(d.Get("ipaddress_id").(string))
-	param.SetProtocol(protocol)
+	param := cloudstack.NewCreateFirewallRuleParameter(ipAddressId, protocol)
 
-	tmp_cidr_list := d.Get("cidr_list").(*schema.Set)
-	cidr_list := make([]string, tmp_cidr_list.Len())
-	for i, cidr := range tmp_cidr_list.List() {
-		cidr_list[i] = cidr.(string)
-	}
-	if len(cidr_list) > 0 {
-		param.SetCidrlist(cidr_list)
+	cl := d.Get("cidr_list").(*schema.Set)
+	if cl.Len() > 0 {
+		param.CidrList = make([]string, cl.Len())
+		for i, cidr := range cl.List() {
+			param.CidrList[i] = cidr.(string)
+		}
 	}
 
 	if strings.ToLower(protocol) == "icmp" {
-		param.SetIcmpcode(int64(d.Get("icmp_code").(int)))
-		param.SetIcmptype(int64(d.Get("icmp_type").(int)))
+		param.IcmpCode.Set(d.Get("icmp_code"))
+		param.IcmpType.Set(d.Get("icmp_type"))
 	} else {
-		param.SetStartport(int64(d.Get("start_port").(int)))
-		param.SetEndport(int64(d.Get("end_port").(int)))
+		param.StartPort.Set(d.Get("start_port"))
+		param.EndPort.Set(d.Get("start_port"))
 	}
 
-	firewall_rule, err := config.client.CreateFirewallRule(param)
+	fwRule, err := config.client.CreateFirewallRule(param)
 	if err != nil {
 		return fmt.Errorf("Error create firewall rule: %s", err)
 	}
 
-	d.SetId(firewall_rule.Id.String)
+	d.SetId(fwRule.Id.String())
 
 	return resourceFirewallRuleRead(d, meta)
 }
@@ -107,61 +105,69 @@ func resourceFirewallRuleCreate(d *schema.ResourceData, meta interface{}) error 
 func resourceFirewallRuleRead(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
 
-	param := cloudstack.ListFirewallRulesParameter{}
-	param.SetId(d.Id())
-	firewall_rules, err := config.client.ListFirewallRules(param)
+	param := cloudstack.NewListFirewallRulesParameter()
+	param.Id.Set(d.Id())
 
+	fwRules, err := config.client.ListFirewallRules(param)
 	if err != nil {
-		param = cloudstack.ListFirewallRulesParameter{}
-		firewall_rules, err = config.client.ListFirewallRules(param)
+		param = cloudstack.NewListFirewallRulesParameter()
+		fwRules, err = config.client.ListFirewallRules(param)
 		if err != nil {
 			return fmt.Errorf("Failed to list firewall rule: %s", err)
 		}
 
 		fn := func(fw interface{}) bool {
-			return fw.(cloudstack.Firewallrule).Id.String == d.Id()
+			return fw.(cloudstack.FirewallRule).Id.String() == d.Id()
 		}
-		firewall_rules = filter(firewall_rules, fn).([]cloudstack.Firewallrule)
+		fwRules = filter(fwRules, fn).([]cloudstack.FirewallRule)
 	}
 
-	if len(firewall_rules) == 0 {
+	if len(fwRules) == 0 {
 		d.SetId("")
 		return nil
 	}
 
-	firewall_rule := firewall_rules[0]
+	fwRule := fwRules[0]
 
-	var cidr_list []interface{}
-	for _, s := range strings.Split(firewall_rule.Cidrlist.String, ",") {
+	var cidrList []interface{}
+	for _, s := range strings.Split(fwRule.CidrList.String(), ",") {
 		s = strings.TrimSpace(s)
 		if s != "" {
-			cidr_list = append(cidr_list, s)
+			cidrList = append(cidrList, s)
 		}
 	}
-	d.Set("cidr_list", cidr_list)
+	d.Set("cidr_list", cidrList)
 
-	if firewall_rule.Startport.Valid {
-		start_port, err := strconv.Atoi(firewall_rule.Startport.String)
+	if !fwRule.StartPort.IsNil() {
+		startPort, err := strconv.Atoi(fwRule.StartPort.String())
 		if err != nil {
-			return fmt.Errorf("Error convert string to int: %s", err)
+			return fmt.Errorf("Error convert to int: %s", err)
 		}
-		d.Set("start_port", start_port)
+		d.Set("start_port", startPort)
 	}
 
-	if firewall_rule.Endport.Valid {
-		end_port, err := strconv.Atoi(firewall_rule.Endport.String)
+	if !fwRule.EndPort.IsNil() {
+		endPort, err := strconv.Atoi(fwRule.EndPort.String())
 		if err != nil {
-			return fmt.Errorf("Error convert string to int: %s", err)
+			return fmt.Errorf("Error convert to int: %s", err)
 		}
-		d.Set("end_port", end_port)
+		d.Set("end_port", endPort)
 	}
 
-	if firewall_rule.Icmpcode.Valid {
-		d.Set("icmp_code", firewall_rule.Icmpcode.Int64)
+	if !fwRule.IcmpCode.IsNil() {
+		icmpCode, err := fwRule.IcmpCode.Int64()
+		if err != nil {
+			return fmt.Errorf("Error convert to int: %s", err)
+		}
+		d.Set("icmp_code", icmpCode)
 	}
 
-	if firewall_rule.Icmptype.Valid {
-		d.Set("icmp_type", firewall_rule.Icmptype.Int64)
+	if !fwRule.IcmpType.IsNil() {
+		icmpType, err := fwRule.IcmpType.Int64()
+		if err != nil {
+			return fmt.Errorf("Error convert to int: %s", err)
+		}
+		d.Set("icmp_type", icmpType)
 	}
 
 	return nil
@@ -178,8 +184,7 @@ func resourceFirewallRuleDelete(d *schema.ResourceData, meta interface{}) error 
 		return nil
 	}
 
-	param := cloudstack.DeleteFirewallRuleParameter{}
-	param.SetId(d.Id())
+	param := cloudstack.NewDeleteFirewallRuleParameter(d.Id())
 	_, err := config.client.DeleteFirewallRule(param)
 	if err != nil {
 		return fmt.Errorf("Error delete firewall rule: %s", err)

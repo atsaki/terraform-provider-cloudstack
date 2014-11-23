@@ -36,7 +36,7 @@ func (c *Config) loadAndValidate() error {
 			c.EndPoint, err)
 	}
 
-	c.client, err = cloudstack.NewClient(*endpoint, c.ApiKey, c.SecretKey, "", "")
+	c.client, err = cloudstack.NewClient(endpoint, c.ApiKey, c.SecretKey, "", "")
 	if err != nil {
 		fmt.Errorf("Error failed to create new client. %s", err)
 	}

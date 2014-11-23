@@ -2,6 +2,7 @@ package cloudstack
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/atsaki/golang-cloudstack-library"
 
@@ -29,13 +30,13 @@ func resourceVirtualMachine() *schema.Resource {
 				Computed: true,
 				ForceNew: true,
 			},
-			"serviceoffering_id": &schema.Schema{
+			"service_offering_id": &schema.Schema{
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
 				ForceNew: true,
 			},
-			"serviceoffering_name": &schema.Schema{
+			"service_offering_name": &schema.Schema{
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
@@ -64,7 +65,7 @@ func resourceVirtualMachine() *schema.Resource {
 				Optional: true,
 				Computed: true,
 			},
-			"keypair": &schema.Schema{
+			"key_pair": &schema.Schema{
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
@@ -93,7 +94,7 @@ func resourceVirtualMachine() *schema.Resource {
 							Type:     schema.TypeString,
 							Computed: true,
 						},
-						"ipaddress": &schema.Schema{
+						"ip_address": &schema.Schema{
 							Type:     schema.TypeString,
 							Computed: true,
 						},
@@ -101,7 +102,7 @@ func resourceVirtualMachine() *schema.Resource {
 							Type:     schema.TypeBool,
 							Computed: true,
 						},
-						"macaddress": &schema.Schema{
+						"mac_address": &schema.Schema{
 							Type:     schema.TypeString,
 							Computed: true,
 						},
@@ -133,73 +134,73 @@ func resourceVirtualMachineCreate(d *schema.ResourceData, meta interface{}) erro
 	var err error
 	config := meta.(*Config)
 
-	zoneid := d.Get("zone_id").(string)
-	if zoneid == "" {
-		zoneid, err = zoneNameToID(config.client, d.Get("zone_name").(string))
+	zoneId := d.Get("zone_id").(string)
+	if zoneId == "" {
+		zoneId, err = nameToID(config.client, "zone", d.Get("zone_name").(string))
 		if err != nil {
 			return err
 		}
-		if zoneid == "" {
+		if zoneId == "" {
 			return fmt.Errorf("zone_id is empty")
 		}
 	}
 
-	serviceofferingid := d.Get("serviceoffering_id").(string)
-	if serviceofferingid == "" {
-		serviceofferingid, err = serviceofferingNameToID(
-			config.client, d.Get("serviceoffering_name").(string))
+	serviceOfferingId := d.Get("service_offering_id").(string)
+	if serviceOfferingId == "" {
+		serviceOfferingId, err = nameToID(
+			config.client, "serviceoffering", d.Get("service_offering_name").(string))
 		if err != nil {
 			return err
 		}
-		if serviceofferingid == "" {
-			return fmt.Errorf("serviceoffering_id is empty")
+		if serviceOfferingId == "" {
+			return fmt.Errorf("service_offering_id is empty")
 		}
 	}
 
-	templateid := d.Get("template_id").(string)
-	if templateid == "" {
-		templateid, err = templateNameToID(
-			config.client, d.Get("template_name").(string))
+	templateId := d.Get("template_id").(string)
+	if templateId == "" {
+		templateId, err = nameToID(
+			config.client, "template", d.Get("template_name").(string))
 		if err != nil {
 			return err
 		}
-		if templateid == "" {
+		if templateId == "" {
 			return fmt.Errorf("template_id is empty")
 		}
 	}
 
-	param := cloudstack.DeployVirtualMachineParameter{}
-	param.SetZoneid(zoneid)
-	param.SetTemplateid(templateid)
-	param.SetServiceofferingid(serviceofferingid)
+	log.Println("ServiceOfferingId", serviceOfferingId)
+	log.Println("templateId", templateId)
+	log.Println("zoneId", zoneId)
+	param := cloudstack.NewDeployVirtualMachineParameter(
+		serviceOfferingId, templateId, zoneId)
 
-	if d.Get("keypair").(string) != "" {
-		param.SetKeypair(d.Get("keypair").(string))
+	if d.Get("key_pair").(string) != "" {
+		param.KeyPair.Set(d.Get("key_pair"))
 	}
 
 	if d.Get("name").(string) != "" {
-		param.SetName(d.Get("name").(string))
+		param.Name.Set(d.Get("name"))
 	}
 
 	if d.Get("display_name").(string) != "" {
-		param.SetDisplayname(d.Get("display_name").(string))
+		param.DisplayName.Set(d.Get("display_name"))
 	}
 
 	if d.Get("security_groups") != nil {
-		tmpSgNames := d.Get("security_groups").(*schema.Set).List()
-		sgNames := make([]string, len(tmpSgNames))
-		for i, sgName := range tmpSgNames {
-			sgNames[i] = sgName.(string)
+		sgNames := d.Get("security_groups").(*schema.Set).List()
+		param.SecurityGroupNames = make([]string, len(sgNames))
+		for i, sgName := range sgNames {
+			param.SecurityGroupNames[i] = sgName.(string)
 		}
-		param.SetSecuritygroupnames(sgNames)
 	}
 
-	virtualmachine, err := config.client.DeployVirtualMachine(param)
+	vm, err := config.client.DeployVirtualMachine(param)
 	if err != nil {
 		return fmt.Errorf("Error deploy virtualmachine: %s", err)
 	}
 
-	d.SetId(virtualmachine.Id.String)
+	d.SetId(vm.Id.String())
 
 	return resourceVirtualMachineRead(d, meta)
 }
@@ -207,57 +208,57 @@ func resourceVirtualMachineCreate(d *schema.ResourceData, meta interface{}) erro
 func resourceVirtualMachineRead(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
 
-	param := cloudstack.ListVirtualMachinesParameter{}
-	param.SetId(d.Id())
-	virtualmachines, err := config.client.ListVirtualMachines(param)
+	param := cloudstack.NewListVirtualMachinesParameter()
+	param.Id.Set(d.Id())
+	vms, err := config.client.ListVirtualMachines(param)
 	if err != nil {
-		param = cloudstack.ListVirtualMachinesParameter{}
-		virtualmachines, err = config.client.ListVirtualMachines(param)
+		param = cloudstack.NewListVirtualMachinesParameter()
+		vms, err = config.client.ListVirtualMachines(param)
 		if err != nil {
 			return fmt.Errorf("Failed to list virtualmachines: %s", err)
 		}
 
 		fn := func(vm interface{}) bool {
-			return vm.(cloudstack.Virtualmachine).Id.String == d.Id()
+			return vm.(cloudstack.VirtualMachine).Id.String() == d.Id()
 		}
-		virtualmachines = filter(virtualmachines, fn).([]cloudstack.Virtualmachine)
+		vms = filter(vms, fn).([]cloudstack.VirtualMachine)
 	}
 
-	if len(virtualmachines) == 0 {
+	if len(vms) == 0 {
 		d.SetId("")
 		return nil
 	}
 
-	virtualmachine := virtualmachines[0]
+	vm := vms[0]
 
-	d.Set("zone_id", virtualmachine.Zoneid.String)
-	d.Set("zone_name", virtualmachine.Zonename.String)
-	d.Set("serviceoffering_id", virtualmachine.Serviceofferingid.String)
-	d.Set("serviceoffering_name", virtualmachine.Serviceofferingname.String)
-	d.Set("template_id", virtualmachine.Templateid.String)
-	d.Set("template_name", virtualmachine.Templatename.String)
-	d.Set("name", virtualmachine.Name.String)
-	d.Set("display_name", virtualmachine.Displayname.String)
+	d.Set("zone_id", vm.ZoneId.String())
+	d.Set("zone_name", vm.ZoneName.String())
+	d.Set("service_offering_id", vm.ServiceOfferingId.String())
+	d.Set("service_offering_name", vm.ServiceOfferingName.String())
+	d.Set("template_id", vm.TemplateId.String())
+	d.Set("template_name", vm.TemplateName.String())
+	d.Set("name", vm.Name.String())
+	d.Set("display_name", vm.DisplayName.String())
 
-	nics := make([]map[string]interface{}, len(virtualmachine.Nic))
-	for i, nic := range virtualmachine.Nic {
+	nics := make([]map[string]interface{}, len(vm.Nic))
+	for i, nic := range vm.Nic {
 		m := make(map[string]interface{})
-		m["id"] = nic.Id.String
-		m["gateway"] = nic.Gateway.String
-		m["ipaddress"] = nic.Ipaddress.String
-		m["is_default"] = nic.Isdefault.Bool
-		m["macaddress"] = nic.Macaddress.String
-		m["netmask"] = nic.Netmask.String
-		m["network_id"] = nic.Networkid.String
-		m["traffic_type"] = nic.Traffictype.String
+		m["id"] = nic.Id.String()
+		m["gateway"] = nic.Gateway.String()
+		m["ip_address"] = nic.IpAddress.String()
+		m["is_default"] = nic.IsDefault.Bool()
+		m["mac_address"] = nic.MacAddress.String()
+		m["netmask"] = nic.Netmask.String()
+		m["network_id"] = nic.NetworkId.String()
+		m["traffic_type"] = nic.TrafficType.String()
 		m["type"] = nic.Type.String
 		nics[i] = m
 	}
 	d.Set("nic", nics)
 
-	sgNames := make([]string, len(virtualmachine.Securitygroup))
-	for i, sg := range virtualmachine.Securitygroup {
-		sgNames[i] = sg.Name.String
+	sgNames := make([]string, len(vm.SecurityGroup))
+	for i, sg := range vm.SecurityGroup {
+		sgNames[i] = sg.Name.String()
 	}
 	d.Set("security_groups", nics)
 
@@ -267,9 +268,11 @@ func resourceVirtualMachineRead(d *schema.ResourceData, meta interface{}) error 
 func resourceVirtualMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
 
-	param := cloudstack.UpdateVirtualMachineParameter{}
-	param.SetId(d.Id())
-	param.SetDisplayname(d.Get("display_name").(string))
+	param := cloudstack.NewUpdateVirtualMachineParameter(d.Id())
+
+	if d.HasChange("display_name") {
+		param.DisplayName.Set(d.Get("display_name"))
+	}
 	_, err := config.client.UpdateVirtualMachine(param)
 	if err != nil {
 		return fmt.Errorf("Error update virtualmachine: %s", err)
@@ -289,9 +292,8 @@ func resourceVirtualMachineDelete(d *schema.ResourceData, meta interface{}) erro
 		return nil
 	}
 
-	destroyvirtualmachineparameter := cloudstack.DestroyVirtualMachineParameter{}
-	destroyvirtualmachineparameter.SetId(d.Id())
-	_, err := config.client.DestroyVirtualMachine(destroyvirtualmachineparameter)
+	param := cloudstack.NewDestroyVirtualMachineParameter(d.Id())
+	_, err := config.client.DestroyVirtualMachine(param)
 	if err != nil {
 		return fmt.Errorf("Error destroy virtualmachine: %s", err)
 	}

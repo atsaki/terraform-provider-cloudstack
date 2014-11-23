@@ -9,7 +9,7 @@ import (
 func Provider() terraform.ResourceProvider {
 	return &schema.Provider{
 		Schema: map[string]*schema.Schema{
-			"endpoint": &schema.Schema{
+			"end_point": &schema.Schema{
 				Type:     schema.TypeString,
 				Required: true,
 			},
@@ -26,11 +26,12 @@ func Provider() terraform.ResourceProvider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
-			"cloudstack_firewall_rule":       resourceFirewallRule(),
-			"cloudstack_ipaddress":           resourceIpAddress(),
-			"cloudstack_portforwarding_rule": resourcePortForwardingRule(),
-			"cloudstack_security_group":      resourceSecurityGroup(),
-			"cloudstack_virtualmachine":      resourceVirtualMachine(),
+			"cloudstack_firewall_rule":        resourceFirewallRule(),
+			"cloudstack_ip_address":           resourceIpAddress(),
+			"cloudstack_port_forwarding_rule": resourcePortForwardingRule(),
+			"cloudstack_security_group":       resourceSecurityGroup(),
+			"cloudstack_virtual_machine":      resourceVirtualMachine(),
+			"cloudstack_volume":               resourceVolume(),
 		},
 
 		ConfigureFunc: providerConfigure,
@@ -39,7 +40,7 @@ func Provider() terraform.ResourceProvider {
 
 func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 	config := Config{
-		EndPoint:  d.Get("endpoint").(string),
+		EndPoint:  d.Get("end_point").(string),
 		ApiKey:    d.Get("api_key").(string),
 		SecretKey: d.Get("secret_key").(string),
 	}

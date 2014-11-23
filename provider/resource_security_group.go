@@ -2,7 +2,6 @@ package cloudstack
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/atsaki/golang-cloudstack-library"
@@ -130,15 +129,14 @@ func securityGroupRuleHash(v interface{}) int {
 func resourceSecurityGroupCreate(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
 
-	param := cloudstack.CreateSecurityGroupParameter{}
-	param.SetName(d.Get("name").(string))
+	param := cloudstack.NewCreateSecurityGroupParameter(d.Get("name").(string))
 
-	security_group, err := config.client.CreateSecurityGroup(param)
+	sg, err := config.client.CreateSecurityGroup(param)
 	if err != nil {
 		return fmt.Errorf("Error create security group: %s", err)
 	}
 
-	d.SetId(security_group.Id.String)
+	d.SetId(sg.Id.String())
 
 	return resourceSecurityGroupUpdate(d, meta)
 }
@@ -152,59 +150,65 @@ func resourceSecurityGroupUpdate(d *schema.ResourceData, meta interface{}) error
 func resourceSecurityGroupRead(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
 
-	param := cloudstack.ListSecurityGroupsParameter{}
-	param.SetId(d.Id())
-	security_groups, err := config.client.ListSecurityGroups(param)
+	param := cloudstack.NewListSecurityGroupsParameter()
+	param.Id.Set(d.Id())
+	sgs, err := config.client.ListSecurityGroups(param)
 
 	if err != nil {
-		param = cloudstack.ListSecurityGroupsParameter{}
-		security_groups, err = config.client.ListSecurityGroups(param)
+		param = cloudstack.NewListSecurityGroupsParameter()
+		sgs, err = config.client.ListSecurityGroups(param)
 		if err != nil {
 			return fmt.Errorf("Failed to list firewall rule: %s", err)
 		}
 
 		fn := func(sg interface{}) bool {
-			return sg.(cloudstack.Securitygroup).Id.String == d.Id()
+			return sg.(cloudstack.SecurityGroup).Id.String() == d.Id()
 		}
-		security_groups = filter(security_groups, fn).([]cloudstack.Securitygroup)
+		sgs = filter(sgs, fn).([]cloudstack.SecurityGroup)
 	}
 
-	if len(security_groups) == 0 {
+	if len(sgs) == 0 {
 		d.SetId("")
 		return nil
 	}
 
-	security_group := security_groups[0]
+	sg := sgs[0]
 
-	egress_rule := make([]map[string]interface{},
-		len(security_group.Egressrule))
-	for i, rule := range security_group.Egressrule {
+	egressRule := make([]map[string]interface{}, len(sg.EgressRule))
+	for i, rule := range sg.EgressRule {
 		m := make(map[string]interface{})
-		m["id"] = rule.Ruleid.String
-		m["protocol"] = rule.Protocol.String
-		m["cidr"] = rule.Cidr.String
-		m["start_port"] = int(rule.Startport.Int64)
-		m["end_port"] = int(rule.Endport.Int64)
-		m["icmp_code"] = int(rule.Icmpcode.Int64)
-		m["icmp_type"] = int(rule.Icmptype.Int64)
-		egress_rule[i] = m
+		m["id"] = rule.RuleId.String()
+		m["protocol"] = rule.Protocol.String()
+		m["cidr"] = rule.Cidr.String()
+		startPort, _ := rule.StartPort.Int64()
+		m["start_port"] = int(startPort)
+		endPort, _ := rule.EndPort.Int64()
+		m["end_port"] = int(endPort)
+		icmpCode, _ := rule.IcmpCode.Int64()
+		m["icmp_code"] = int(icmpCode)
+		icmpType, _ := rule.IcmpType.Int64()
+		m["icmp_type"] = int(icmpType)
+		egressRule[i] = m
 	}
-	d.Set("egress_rule", egress_rule)
+	d.Set("egress_rule", egressRule)
 
-	ingress_rule := make([]map[string]interface{},
-		len(security_group.Ingressrule))
-	for i, rule := range security_group.Ingressrule {
+	ingressRule := make([]map[string]interface{}, len(sg.IngressRule))
+	for i, rule := range sg.IngressRule {
 		m := make(map[string]interface{})
-		m["id"] = rule.Ruleid.String
-		m["protocol"] = rule.Protocol.String
-		m["cidr"] = rule.Cidr.String
-		m["start_port"] = int(rule.Startport.Int64)
-		m["end_port"] = int(rule.Endport.Int64)
-		m["icmp_code"] = int(rule.Icmpcode.Int64)
-		m["icmp_type"] = int(rule.Icmptype.Int64)
-		ingress_rule[i] = m
+		m["id"] = rule.RuleId.String()
+		m["protocol"] = rule.Protocol.String()
+		m["cidr"] = rule.Cidr.String()
+		startPort, _ := rule.StartPort.Int64()
+		m["start_port"] = int(startPort)
+		endPort, _ := rule.EndPort.Int64()
+		m["end_port"] = int(endPort)
+		icmpCode, _ := rule.IcmpCode.Int64()
+		m["icmp_code"] = int(icmpCode)
+		icmpType, _ := rule.IcmpType.Int64()
+		m["icmp_type"] = int(icmpType)
+		ingressRule[i] = m
 	}
-	d.Set("ingress_rule", ingress_rule)
+	d.Set("ingress_rule", ingressRule)
 
 	return nil
 }
@@ -220,8 +224,8 @@ func resourceSecurityGroupDelete(d *schema.ResourceData, meta interface{}) error
 		return nil
 	}
 
-	param := cloudstack.DeleteSecurityGroupParameter{}
-	param.SetId(d.Id())
+	param := cloudstack.NewDeleteSecurityGroupParameter()
+	param.Id.Set(d.Id())
 	_, err := config.client.DeleteSecurityGroup(param)
 	if err != nil {
 		return fmt.Errorf("Error delete security group: %s", err)
@@ -249,8 +253,7 @@ func resourceSecurityGroupIngressUpdate(d *schema.ResourceData, meta interface{}
 
 		for i := range remove {
 			m := remove[i].(map[string]interface{})
-			param := cloudstack.RevokeSecurityGroupIngressParameter{}
-			param.SetId(m["id"].(string))
+			param := cloudstack.NewRevokeSecurityGroupIngressParameter(m["id"].(string))
 			_, err := config.client.RevokeSecurityGroupIngress(param)
 			if err != nil {
 				return fmt.Errorf("Error revoke security group ingress: %s", err)
@@ -261,17 +264,17 @@ func resourceSecurityGroupIngressUpdate(d *schema.ResourceData, meta interface{}
 			m := add[i].(map[string]interface{})
 			protocol := m["protocol"].(string)
 
-			param := cloudstack.AuthorizeSecurityGroupIngressParameter{}
-			param.SetSecuritygroupid(d.Id())
-			param.SetProtocol(protocol)
-			param.SetCidrlist([]string{m["cidr"].(string)})
+			param := cloudstack.NewAuthorizeSecurityGroupIngressParameter()
+			param.SecurityGroupId.Set(d.Id())
+			param.Protocol.Set(protocol)
+			param.CidrList = []string{m["cidr"].(string)}
 
 			if strings.ToLower(protocol) == "icmp" {
-				param.SetIcmpcode(int64(m["icmp_code"].(int)))
-				param.SetIcmptype(int64(m["icmp_type"].(int)))
+				param.IcmpCode.Set(m["icmp_code"])
+				param.IcmpType.Set(m["icmp_type"])
 			} else {
-				param.SetStartport(int64(m["start_port"].(int)))
-				param.SetEndport(int64(m["end_port"].(int)))
+				param.StartPort.Set(m["start_port"])
+				param.EndPort.Set(m["end_port"])
 			}
 			_, err := config.client.AuthorizeSecurityGroupIngress(param)
 			if err != nil {
@@ -300,34 +303,30 @@ func resourceSecurityGroupEgressUpdate(d *schema.ResourceData, meta interface{})
 		add := ns.Difference(os).List()
 		remove := os.Difference(ns).List()
 
-		log.Println("REMOVE", len(remove))
 		for i := range remove {
 			m := remove[i].(map[string]interface{})
-			log.Println("M", m)
-			param := cloudstack.RevokeSecurityGroupEgressParameter{}
-			param.SetId(m["id"].(string))
+			param := cloudstack.NewRevokeSecurityGroupEgressParameter(m["id"].(string))
 			_, err := config.client.RevokeSecurityGroupEgress(param)
 			if err != nil {
 				return fmt.Errorf("Error revoke security group egress: %s", err)
 			}
 		}
 
-		log.Println("ADD", len(add))
 		for i := range add {
 			m := add[i].(map[string]interface{})
-			log.Println("M", m)
-			param := cloudstack.AuthorizeSecurityGroupEgressParameter{}
 			protocol := m["protocol"].(string)
-			param.SetSecuritygroupid(d.Id())
-			param.SetProtocol(protocol)
-			param.SetCidrlist([]string{m["cidr"].(string)})
+
+			param := cloudstack.NewAuthorizeSecurityGroupEgressParameter()
+			param.SecurityGroupId.Set(d.Id())
+			param.Protocol.Set(protocol)
+			param.CidrList = []string{m["cidr"].(string)}
 
 			if strings.ToLower(protocol) == "icmp" {
-				param.SetIcmpcode(int64(m["icmp_code"].(int)))
-				param.SetIcmptype(int64(m["icmp_type"].(int)))
+				param.IcmpCode.Set(m["icmp_code"])
+				param.IcmpType.Set(m["icmp_type"])
 			} else {
-				param.SetStartport(int64(m["start_port"].(int)))
-				param.SetEndport(int64(m["end_port"].(int)))
+				param.StartPort.Set(m["start_port"])
+				param.EndPort.Set(m["end_port"])
 			}
 			_, err := config.client.AuthorizeSecurityGroupEgress(param)
 			if err != nil {

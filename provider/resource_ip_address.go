@@ -26,16 +26,16 @@ func resourceIpAddress() *schema.Resource {
 				Optional: true,
 				Computed: true,
 			},
-			"ipaddress": &schema.Schema{
+			"ip_address": &schema.Schema{
 				Type:     schema.TypeString,
 				Computed: true,
 			},
-			"is_staticnat": &schema.Schema{
+			"is_static_nat": &schema.Schema{
 				Type:     schema.TypeBool,
 				Optional: true,
 				Default:  false,
 			},
-			"virtualmachine_id": &schema.Schema{
+			"virtual_machine_id": &schema.Schema{
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
@@ -47,20 +47,20 @@ func resourceIpAddress() *schema.Resource {
 func resourceIpAddressCreate(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
 
-	param := cloudstack.AssociateIpAddressParameter{}
+	param := cloudstack.NewAssociateIpAddressParameter()
 	if d.Get("zone_id").(string) != "" {
-		param.SetZoneid(d.Get("zone_id").(string))
+		param.ZoneId.Set(d.Get("zone_id"))
 	}
 	if d.Get("network_id").(string) != "" {
-		param.SetNetworkid(d.Get("network_id").(string))
+		param.NetworkId.Set(d.Get("network_id"))
 	}
 
-	ipaddress, err := config.client.AssociateIpAddress(param)
+	ipAddress, err := config.client.AssociateIpAddress(param)
 	if err != nil {
 		return fmt.Errorf("Error associate ipaddress: %s", err)
 	}
 
-	d.SetId(ipaddress.Id.String)
+	d.SetId(ipAddress.Id.String())
 
 	return resourceIpAddressUpdate(d, meta)
 }
@@ -68,39 +68,39 @@ func resourceIpAddressCreate(d *schema.ResourceData, meta interface{}) error {
 func resourceIpAddressRead(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
 
-	param := cloudstack.ListPublicIpAddressesParameter{}
-	param.SetId(d.Id())
-	ipaddresses, err := config.client.ListPublicIpAddresses(param)
+	param := cloudstack.NewListPublicIpAddressesParameter()
+	param.Id.Set(d.Id())
 
+	ipAddresses, err := config.client.ListPublicIpAddresses(param)
 	if err != nil {
-		param = cloudstack.ListPublicIpAddressesParameter{}
-		ipaddresses, err = config.client.ListPublicIpAddresses(param)
+		param = cloudstack.NewListPublicIpAddressesParameter()
+		ipAddresses, err = config.client.ListPublicIpAddresses(param)
 		if err != nil {
 			return fmt.Errorf("Failed to list ipaddress: %s", err)
 		}
 
 		fn := func(ip interface{}) bool {
-			return ip.(cloudstack.Publicipaddress).Id.String == d.Id()
+			return ip.(cloudstack.PublicIpAddress).Id.String() == d.Id()
 		}
-		ipaddresses = filter(ipaddresses, fn).([]cloudstack.Publicipaddress)
+		ipAddresses = filter(ipAddresses, fn).([]cloudstack.PublicIpAddress)
 	}
 
-	if len(ipaddresses) == 0 {
+	if len(ipAddresses) == 0 {
 		d.SetId("")
 		return nil
 	}
 
-	ipaddress := ipaddresses[0]
+	ipAddress := ipAddresses[0]
 
-	d.Set("zone_id", ipaddress.Zoneid.String)
-	d.Set("network_id", ipaddress.Networkid.String)
-	d.Set("ipaddress", ipaddress.Ipaddress.String)
-	d.Set("is_staticnat", ipaddress.Isstaticnat.Bool)
+	d.Set("zone_id", ipAddress.ZoneId.String())
+	d.Set("network_id", ipAddress.NetworkId.String())
+	d.Set("ip_address", ipAddress.IpAddress.String())
+	d.Set("is_static_nat", ipAddress.IsStaticNat.Bool())
 
-	if ipaddress.Virtualmachineid.Valid {
-		d.Set("virtualmachine_id", ipaddress.Virtualmachineid.String)
+	if !ipAddress.VirtualMachineId.IsNil() {
+		d.Set("virtual_machine_id", ipAddress.VirtualMachineId.String())
 	} else {
-		d.Set("virtualmachine_id", "")
+		d.Set("virtual_machine_id", "")
 	}
 
 	return nil
@@ -109,14 +109,13 @@ func resourceIpAddressRead(d *schema.ResourceData, meta interface{}) error {
 func resourceIpAddressUpdate(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
 
-	is_staticnat := d.Get("is_staticnat").(bool)
-	virtualmachine_id := d.Get("virtualmachine_id").(string)
+	isStaticNat := d.Get("is_static_nat").(bool)
+	virtualMachineId := d.Get("virtual_machine_id").(string)
 
-	if !is_staticnat || d.HasChange("virtualmachine_id") {
+	if !isStaticNat || d.HasChange("virtual_machine_id") {
 		resourceIpAddressRead(d, meta)
-		if d.Get("is_staticnat").(bool) {
-			param := cloudstack.DisableStaticNatParameter{}
-			param.SetIpaddressid(d.Id())
+		if d.Get("is_static_nat").(bool) {
+			param := cloudstack.NewDisableStaticNatParameter(d.Id())
 			_, err := config.client.DisableStaticNat(param)
 			if err != nil {
 				return fmt.Errorf("Error disable static nat: %s", err)
@@ -124,10 +123,8 @@ func resourceIpAddressUpdate(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
-	if is_staticnat && d.HasChange("virtualmachine_id") {
-		param := cloudstack.EnableStaticNatParameter{}
-		param.SetIpaddressid(d.Id())
-		param.SetVirtualmachineid(virtualmachine_id)
+	if isStaticNat && d.HasChange("virtual_machine_id") {
+		param := cloudstack.NewEnableStaticNatParameter(d.Id(), virtualMachineId)
 		_, err := config.client.EnableStaticNat(param)
 		if err != nil {
 			return fmt.Errorf("Error enable static nat: %s", err)
@@ -147,8 +144,7 @@ func resourceIpAddressDelete(d *schema.ResourceData, meta interface{}) error {
 		return nil
 	}
 
-	param := cloudstack.DisassociateIpAddressParameter{}
-	param.SetId(d.Id())
+	param := cloudstack.NewDisassociateIpAddressParameter(d.Id())
 	_, err := config.client.DisassociateIpAddress(param)
 	if err != nil {
 		return fmt.Errorf("Error disassociate ipaddress: %s", err)

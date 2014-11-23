@@ -21,7 +21,7 @@ func resourceVolume() *schema.Resource {
 				Required: true,
 				ForceNew: true,
 			},
-			"diskoffering_id": &schema.Schema{
+			"disk_offering_id": &schema.Schema{
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
@@ -37,7 +37,7 @@ func resourceVolume() *schema.Resource {
 				Type:     schema.TypeBool,
 				Optional: true,
 			},
-			"virtualmachine_id": &schema.Schema{
+			"virtual_machine_id": &schema.Schema{
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
@@ -55,18 +55,15 @@ func resourceVolume() *schema.Resource {
 func resourceVolumeCreate(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
 
-	param := cloudstack.CreateVolumeParameter{}
-	if d.Get("name").(string) != "" {
-		param.SetName(d.Get("name").(string))
-	}
-	if d.Get("diskoffering_id").(string) != "" {
-		param.SetDiskofferingid(d.Get("diskoffering_id").(string))
+	param := cloudstack.NewCreateVolumeParameter(d.Get("name").(string))
+	if d.Get("disk_offering_id").(string) != "" {
+		param.DiskOfferingId.Set(d.Get("disk_offering_id"))
 	}
 	if d.Get("size").(int) != 0 {
-		param.SetSize(int64(d.Get("size").(int)))
+		param.Size.Set(d.Get("size"))
 	}
 	if d.Get("zone_id").(string) != "" {
-		param.SetZoneid(d.Get("zone_id").(string))
+		param.ZoneId.Set(d.Get("zone_id"))
 	}
 
 	volume, err := config.client.CreateVolume(param)
@@ -74,7 +71,7 @@ func resourceVolumeCreate(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("Error create volume: %s", err)
 	}
 
-	d.SetId(volume.Id.String)
+	d.SetId(volume.Id.String())
 
 	return resourceVolumeUpdate(d, meta)
 }
@@ -82,19 +79,19 @@ func resourceVolumeCreate(d *schema.ResourceData, meta interface{}) error {
 func resourceVolumeRead(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
 
-	param := cloudstack.ListVolumesParameter{}
-	param.SetId(d.Id())
+	param := cloudstack.NewListVolumesParameter()
+	param.Id.Set(d.Id())
 	volumes, err := config.client.ListVolumes(param)
 
 	if err != nil {
-		param = cloudstack.ListVolumesParameter{}
+		param = cloudstack.NewListVolumesParameter()
 		volumes, err = config.client.ListVolumes(param)
 		if err != nil {
 			return fmt.Errorf("Failed to list volumes: %s", err)
 		}
 
 		fn := func(vol interface{}) bool {
-			return vol.(cloudstack.Volume).Id.String == d.Id()
+			return vol.(cloudstack.Volume).Id.String() == d.Id()
 		}
 		volumes = filter(volumes, fn).([]cloudstack.Volume)
 	}
@@ -106,12 +103,12 @@ func resourceVolumeRead(d *schema.ResourceData, meta interface{}) error {
 
 	volume := volumes[0]
 
-	if volume.Virtualmachineid.Valid {
+	if !volume.VirtualMachineId.IsNil() {
 		d.Set("is_attached", true)
-		d.Set("virtualmachine_id", volume.Virtualmachineid.String)
+		d.Set("virtual_machine_id", volume.VirtualMachineId.String())
 	} else {
 		d.Set("is_attached", false)
-		d.Set("virtualmachine_id", "")
+		d.Set("virtual_machine_id", "")
 	}
 
 	return nil
@@ -120,14 +117,14 @@ func resourceVolumeRead(d *schema.ResourceData, meta interface{}) error {
 func resourceVolumeUpdate(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
 
-	is_attached := d.Get("is_attached").(bool)
-	virtualmachine_id := d.Get("virtualmachine_id").(string)
+	isAttached := d.Get("is_attached").(bool)
+	vmid := d.Get("virtual_machine_id").(string)
 
-	if !is_attached || d.HasChange("virtualmachine_id") {
+	if !isAttached || d.HasChange("virtual_machine_id") {
 		resourceVolumeRead(d, meta)
 		if d.Get("is_attached").(bool) {
-			param := cloudstack.DetachVolumeParameter{}
-			param.SetId(d.Id())
+			param := cloudstack.NewDetachVolumeParameter()
+			param.Id.Set(d.Id())
 			_, err := config.client.DetachVolume(param)
 			if err != nil {
 				return fmt.Errorf("Error detach volume: %s", err)
@@ -135,10 +132,8 @@ func resourceVolumeUpdate(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
-	if is_attached && d.HasChange("virtualmachine_id") {
-		param := cloudstack.AttachVolumeParameter{}
-		param.SetId(d.Id())
-		param.SetVirtualmachineid(virtualmachine_id)
+	if isAttached && d.HasChange("virtual_machine_id") {
+		param := cloudstack.NewAttachVolumeParameter(d.Id(), vmid)
 		_, err := config.client.AttachVolume(param)
 		if err != nil {
 			return fmt.Errorf("Error attach volume: %s", err)
@@ -158,8 +153,7 @@ func resourceVolumeDelete(d *schema.ResourceData, meta interface{}) error {
 		return nil
 	}
 
-	param := cloudstack.DeleteVolumeParameter{}
-	param.SetId(d.Id())
+	param := cloudstack.NewDeleteVolumeParameter(d.Id())
 	_, err := config.client.DeleteVolume(param)
 	if err != nil {
 		return fmt.Errorf("Error deleteVolume: %s", err)

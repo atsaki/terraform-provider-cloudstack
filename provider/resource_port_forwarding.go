@@ -18,7 +18,7 @@ func resourcePortForwardingRule() *schema.Resource {
 		Delete: resourcePortForwardingRuleDelete,
 
 		Schema: map[string]*schema.Schema{
-			"ipaddress_id": &schema.Schema{
+			"ip_address_id": &schema.Schema{
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
@@ -38,7 +38,7 @@ func resourcePortForwardingRule() *schema.Resource {
 				Required: true,
 				ForceNew: true,
 			},
-			"virtualmachine_id": &schema.Schema{
+			"virtual_machine_id": &schema.Schema{
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
@@ -74,35 +74,35 @@ func resourcePortForwardingRule() *schema.Resource {
 func resourcePortForwardingRuleCreate(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
 
-	param := cloudstack.CreatePortForwardingRuleParameter{}
-	param.SetIpaddressid(d.Get("ipaddress_id").(string))
-	param.SetProtocol(d.Get("protocol").(string))
-	param.SetPublicport(int64(d.Get("public_port").(int)))
-	param.SetPrivateport(int64(d.Get("private_port").(int)))
-	param.SetVirtualmachineid(d.Get("virtualmachine_id").(string))
+	ipAddressId := d.Get("ip_address_id").(string)
+	privatePort := d.Get("private_port").(int)
+	protocol := d.Get("protocol").(string)
+	publicPort := d.Get("public_port").(int)
+	virtualMachineId := d.Get("virtual_machine_id").(string)
+	param := cloudstack.NewCreatePortForwardingRuleParameter(
+		ipAddressId, privatePort, protocol, publicPort, virtualMachineId)
 
-	tmp_cidr_list := d.Get("cidr_list").(*schema.Set)
-	cidr_list := make([]string, tmp_cidr_list.Len())
-	for i, cidr := range tmp_cidr_list.List() {
-		cidr_list[i] = cidr.(string)
-	}
-	if len(cidr_list) > 0 {
-		param.SetCidrlist(cidr_list)
+	cl := d.Get("cidr_list").(*schema.Set)
+	if cl.Len() > 0 {
+		param.CidrList = make([]string, cl.Len())
+		for i, cidr := range cl.List() {
+			param.CidrList[i] = cidr.(string)
+		}
 	}
 
 	if d.Get("public_end_port").(int) != 0 {
-		param.SetPublicendport(int64(d.Get("public_end_port").(int)))
+		param.PublicEndPort.Set(d.Get("public_end_port"))
 	}
 	if d.Get("private_end_port").(int) != 0 {
-		param.SetPrivateendport(int64(d.Get("private_end_port").(int)))
+		param.PrivateEndPort.Set(d.Get("private_end_port"))
 	}
 
-	portforwarding_rule, err := config.client.CreatePortForwardingRule(param)
+	pfRule, err := config.client.CreatePortForwardingRule(param)
 	if err != nil {
 		return fmt.Errorf("Error create portforwarding rule: %s", err)
 	}
 
-	d.SetId(portforwarding_rule.Id.String)
+	d.SetId(pfRule.Id.String())
 
 	return resourcePortForwardingRuleRead(d, meta)
 }
@@ -110,55 +110,53 @@ func resourcePortForwardingRuleCreate(d *schema.ResourceData, meta interface{}) 
 func resourcePortForwardingRuleRead(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
 
-	param := cloudstack.ListPortForwardingRulesParameter{}
-	param.SetId(d.Id())
-	portforwarding_rules, err := config.client.ListPortForwardingRules(param)
+	param := cloudstack.NewListPortForwardingRulesParameter()
+	param.Id.Set(d.Id())
+	pfRules, err := config.client.ListPortForwardingRules(param)
 
 	if err != nil {
-		param = cloudstack.ListPortForwardingRulesParameter{}
-		portforwarding_rules, err = config.client.ListPortForwardingRules(param)
+		param = cloudstack.NewListPortForwardingRulesParameter()
+		pfRules, err = config.client.ListPortForwardingRules(param)
 		if err != nil {
 			return fmt.Errorf("Failed to list portforwarding rule: %s", err)
 		}
 
 		fn := func(pf interface{}) bool {
-			return pf.(cloudstack.Portforwardingrule).Id.String == d.Id()
+			return pf.(cloudstack.PortForwardingRule).Id.String() == d.Id()
 		}
-		portforwarding_rules = filter(portforwarding_rules, fn).([]cloudstack.Portforwardingrule)
+		pfRules = filter(pfRules, fn).([]cloudstack.PortForwardingRule)
 	}
 
-	if len(portforwarding_rules) == 0 {
+	if len(pfRules) == 0 {
 		d.SetId("")
 		return nil
 	}
 
-	portforwarding_rule := portforwarding_rules[0]
+	pfRule := pfRules[0]
 
-	var cidr_list []interface{}
-	for _, s := range strings.Split(portforwarding_rule.Cidrlist.String, ",") {
+	var cidrList []interface{}
+	for _, s := range strings.Split(pfRule.CidrList.String(), ",") {
 		s = strings.TrimSpace(s)
 		if s != "" {
-			cidr_list = append(cidr_list, s)
+			cidrList = append(cidrList, s)
 		}
 	}
-	d.Set("cidr_list", cidr_list)
+	d.Set("cidr_list", cidrList)
 
-	if portforwarding_rule.Publicendport.Valid {
-		public_end_port, err := strconv.Atoi(
-			portforwarding_rule.Publicendport.String)
+	if !pfRule.PublicEndPort.IsNil() {
+		publicEndPort, err := strconv.Atoi(pfRule.PublicEndPort.String())
 		if err != nil {
 			return fmt.Errorf("Error convert string to int: %s", err)
 		}
-		d.Set("public_end_port", public_end_port)
+		d.Set("public_end_port", publicEndPort)
 	}
 
-	if portforwarding_rule.Publicendport.Valid {
-		public_end_port, err := strconv.Atoi(
-			portforwarding_rule.Publicendport.String)
+	if !pfRule.PrivateEndPort.IsNil() {
+		privateEndPort, err := strconv.Atoi(pfRule.PrivateEndPort.String())
 		if err != nil {
 			return fmt.Errorf("Error convert string to int: %s", err)
 		}
-		d.Set("public_end_port", public_end_port)
+		d.Set("private_end_port", privateEndPort)
 	}
 
 	return nil
@@ -174,8 +172,7 @@ func resourcePortForwardingRuleDelete(d *schema.ResourceData, meta interface{}) 
 	if d.Id() == "" {
 		return nil
 	}
-	param := cloudstack.DeletePortForwardingRuleParameter{}
-	param.SetId(d.Id())
+	param := cloudstack.NewDeletePortForwardingRuleParameter(d.Id())
 	_, err := config.client.DeletePortForwardingRule(param)
 	if err != nil {
 		return fmt.Errorf("Error delete portforwarding rule: %s", err)

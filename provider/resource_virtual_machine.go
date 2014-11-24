@@ -161,39 +161,19 @@ func resourceVirtualMachineCreate(d *schema.ResourceData, meta interface{}) erro
 	var err error
 	config := meta.(*Config)
 
-	zoneId := d.Get("zone_id").(string)
-	if zoneId == "" {
-		zoneId, err = nameToID(config.client, "zone", d.Get("zone_name").(string))
-		if err != nil {
-			return err
-		}
-		if zoneId == "" {
-			return fmt.Errorf("zone_id is empty")
-		}
+	zoneId, err := getResourceId(d, meta, "zone")
+	if err != nil {
+		return err
 	}
 
-	serviceOfferingId := d.Get("service_offering_id").(string)
-	if serviceOfferingId == "" {
-		serviceOfferingId, err = nameToID(
-			config.client, "serviceoffering", d.Get("service_offering_name").(string))
-		if err != nil {
-			return err
-		}
-		if serviceOfferingId == "" {
-			return fmt.Errorf("service_offering_id is empty")
-		}
+	serviceOfferingId, err := getResourceId(d, meta, "service_offering")
+	if err != nil {
+		return err
 	}
 
-	templateId := d.Get("template_id").(string)
-	if templateId == "" {
-		templateId, err = nameToID(
-			config.client, "template", d.Get("template_name").(string))
-		if err != nil {
-			return err
-		}
-		if templateId == "" {
-			return fmt.Errorf("template_id is empty")
-		}
+	templateId, err := getResourceId(d, meta, "template")
+	if err != nil {
+		return err
 	}
 
 	var networkIds []string

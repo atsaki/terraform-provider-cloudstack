@@ -57,14 +57,14 @@ func nameToID(client *cloudstack.Client, resourcetype, name string) (id string, 
 		if err != nil {
 			return "", fmt.Errorf("Failed to list zone '%s': %s", name, err)
 		}
-	case "serviceoffering":
+	case "service_offering":
 		param := cloudstack.NewListServiceOfferingsParameter()
 		param.Name.Set(name)
 		objs, err = client.ListServiceOfferings(param)
 		if err != nil {
 			return "", fmt.Errorf("Failed to list serviceoffering '%s': %s", name, err)
 		}
-	case "networkoffering":
+	case "network_offering":
 		param := cloudstack.NewListNetworkOfferingsParameter()
 		param.Name.Set(name)
 		objs, err = client.ListNetworkOfferings(param)

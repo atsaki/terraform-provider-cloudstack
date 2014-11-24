@@ -8,15 +8,6 @@ import (
 	"github.com/hashicorp/terraform/helper/schema"
 )
 
-func getNetworkOfferingId(d *schema.ResourceData, meta interface{}) (networkOfferingId string, err error) {
-	config := meta.(*Config)
-
-	if networkOfferingId != "" {
-		return d.Get("network_offering_id").(string), nil
-	}
-	return nameToID(config.client, "networkoffering", d.Get("network_offering_name").(string))
-}
-
 func resourceNetwork() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceNetworkCreate,
@@ -85,18 +76,12 @@ func resourceNetwork() *schema.Resource {
 func resourceNetworkCreate(d *schema.ResourceData, meta interface{}) (err error) {
 	config := meta.(*Config)
 
-	zoneId := d.Get("zone_id").(string)
-	if zoneId == "" {
-		zoneId, err = nameToID(config.client, "zone", d.Get("zone_name").(string))
-		if err != nil {
-			return err
-		}
-		if zoneId == "" {
-			return fmt.Errorf("zone_id is empty")
-		}
+	zoneId, err := getResourceId(d, meta, "zone")
+	if err != nil {
+		return err
 	}
 
-	networkOfferingId, err := getNetworkOfferingId(d, meta)
+	networkOfferingId, err := getResourceId(d, meta, "network_offering")
 	if err != nil {
 		return err
 	}
@@ -178,7 +163,7 @@ func resourceNetworkUpdate(d *schema.ResourceData, meta interface{}) error {
 		param.DisplayText.Set(d.Get("display_text"))
 	}
 	if d.HasChange("network_offering_id") || d.HasChange("network_offering_name") {
-		networkOfferingId, err := getNetworkOfferingId(d, meta)
+		networkOfferingId, err := getResourceId(d, meta, "network_offering")
 		if err != nil {
 			return err
 		}

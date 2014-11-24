@@ -67,6 +67,11 @@ func resourcePortForwardingRule() *schema.Resource {
 				Computed: true,
 				ForceNew: true,
 			},
+			"open_firewall": &schema.Schema{
+				Type:     schema.TypeBool,
+				Default:  false,
+				Optional: true,
+			},
 		},
 	}
 }
@@ -96,6 +101,8 @@ func resourcePortForwardingRuleCreate(d *schema.ResourceData, meta interface{}) 
 	if d.Get("private_end_port").(int) != 0 {
 		param.PrivateEndPort.Set(d.Get("private_end_port"))
 	}
+
+	param.OpenFirewall.Set(d.Get("open_firewall").(bool))
 
 	pfRule, err := config.client.CreatePortForwardingRule(param)
 	if err != nil {

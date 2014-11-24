@@ -348,6 +348,7 @@ func resourceVirtualMachineDelete(d *schema.ResourceData, meta interface{}) erro
 	}
 
 	param := cloudstack.NewDestroyVirtualMachineParameter(d.Id())
+	param.Expunge.Set(true)
 	_, err := config.client.DestroyVirtualMachine(param)
 	if err != nil {
 		return fmt.Errorf("Error destroy virtualmachine: %s", err)

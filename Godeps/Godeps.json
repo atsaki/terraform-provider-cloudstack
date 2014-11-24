@@ -9,7 +9,7 @@
 		},
 		{
 			"ImportPath": "github.com/atsaki/golang-cloudstack-library",
-			"Rev": "6d02268436984984141bd2965e34d7c16f3ed68d"
+			"Rev": "fdcb40cf5c40060f96fcf04dc17534139f63d10b"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/hcl",

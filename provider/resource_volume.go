@@ -25,13 +25,17 @@ func resourceVolume() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
-				ForceNew: true,
 			},
+			"disk_offering_name": &schema.Schema{
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+			},
+			// size unit is GB
 			"size": &schema.Schema{
 				Type:     schema.TypeInt,
 				Optional: true,
 				Computed: true,
-				ForceNew: true,
 			},
 			"is_attached": &schema.Schema{
 				Type:     schema.TypeBool,
@@ -48,6 +52,12 @@ func resourceVolume() *schema.Resource {
 				Computed: true,
 				ForceNew: true,
 			},
+			"zone_name": &schema.Schema{
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+			},
 		},
 	}
 }
@@ -56,14 +66,25 @@ func resourceVolumeCreate(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
 
 	param := cloudstack.NewCreateVolumeParameter(d.Get("name").(string))
-	if d.Get("disk_offering_id").(string) != "" {
-		param.DiskOfferingId.Set(d.Get("disk_offering_id"))
+
+	diskOfferingId, err := getResourceId(d, meta, "disk_offering")
+	if err != nil {
+		return err
+	}
+
+	zoneId, err := getResourceId(d, meta, "zone")
+	if err != nil {
+		return err
+	}
+
+	if diskOfferingId != "" {
+		param.DiskOfferingId.Set(diskOfferingId)
+	}
+	if zoneId != "" {
+		param.ZoneId.Set(zoneId)
 	}
 	if d.Get("size").(int) != 0 {
-		param.Size.Set(d.Get("size"))
-	}
-	if d.Get("zone_id").(string) != "" {
-		param.ZoneId.Set(d.Get("zone_id"))
+		param.Size.Set(d.Get("size").(int))
 	}
 
 	volume, err := config.client.CreateVolume(param)
@@ -103,6 +124,19 @@ func resourceVolumeRead(d *schema.ResourceData, meta interface{}) error {
 
 	volume := volumes[0]
 
+	d.Set("name", volume.Name.String())
+	d.Set("disk_offering_id", volume.DiskOfferingId.String())
+	d.Set("disk_offering_name", volume.DiskOfferingName.String())
+	d.Set("zone_id", volume.ZoneId.String())
+	d.Set("zone_name", volume.ZoneName.String())
+
+	size, err := volume.Size.Int64()
+	if err == nil {
+		d.Set("size", int(size)/1024/1024/1024)
+	} else {
+		return err
+	}
+
 	if !volume.VirtualMachineId.IsNil() {
 		d.Set("is_attached", true)
 		d.Set("virtual_machine_id", volume.VirtualMachineId.String())
@@ -117,11 +151,15 @@ func resourceVolumeRead(d *schema.ResourceData, meta interface{}) error {
 func resourceVolumeUpdate(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
 
-	isAttached := d.Get("is_attached").(bool)
+	size := d.Get("size").(int)
+	diskOfferingId := d.Get("disk_offering_id").(string)
+	diskOfferingName := d.Get("disk_offering_name").(string)
 	vmid := d.Get("virtual_machine_id").(string)
+	isAttached := d.Get("is_attached").(bool)
 
-	if !isAttached || d.HasChange("virtual_machine_id") {
-		resourceVolumeRead(d, meta)
+	resourceVolumeRead(d, meta)
+
+	if !isAttached || vmid != d.Get("virtual_machine_id").(string) {
 		if d.Get("is_attached").(bool) {
 			param := cloudstack.NewDetachVolumeParameter()
 			param.Id.Set(d.Id())
@@ -130,16 +168,46 @@ func resourceVolumeUpdate(d *schema.ResourceData, meta interface{}) error {
 				return fmt.Errorf("Error detach volume: %s", err)
 			}
 		}
+		resourceVolumeRead(d, meta)
 	}
 
-	if isAttached && d.HasChange("virtual_machine_id") {
+	if isAttached && vmid != d.Get("virtual_machine_id").(string) {
 		param := cloudstack.NewAttachVolumeParameter(d.Id(), vmid)
 		_, err := config.client.AttachVolume(param)
 		if err != nil {
 			return fmt.Errorf("Error attach volume: %s", err)
 		}
+		resourceVolumeRead(d, meta)
 	}
-	return resourceVolumeRead(d, meta)
+
+	if d.Get("is_attached").(bool) && d.Get("virtual_machine_id").(string) != "" &&
+		size != d.Get("size").(int) ||
+		diskOfferingId != d.Get("disk_offering_id").(string) ||
+		diskOfferingName != d.Get("disk_offering_name").(string) {
+
+		param := cloudstack.NewResizeVolumeParameter(d.Id())
+
+		if diskOfferingId != d.Get("disk_offering_id").(string) ||
+			diskOfferingName != d.Get("disk_offering_name").(string) {
+			diskOfferingId, err := getResourceId(d, meta, "disk_offering")
+			if err != nil {
+				return err
+			}
+			param.DiskOfferingId.Set(diskOfferingId)
+		}
+
+		if size != d.Get("size").(int) {
+			param.Size.Set(size)
+		}
+
+		_, err := config.client.ResizeVolume(param)
+		if err != nil {
+			return fmt.Errorf("Error resize volume: %s", err)
+		}
+		resourceVolumeRead(d, meta)
+	}
+
+	return nil
 }
 
 func resourceVolumeDelete(d *schema.ResourceData, meta interface{}) error {

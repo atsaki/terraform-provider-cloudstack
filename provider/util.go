@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/atsaki/golang-cloudstack-library"
+	"github.com/hashicorp/terraform/helper/schema"
 )
 
 func equalName(obj interface{}, name string) bool {
@@ -17,12 +18,12 @@ func equalName(obj interface{}, name string) bool {
 	return objName == name
 }
 
-func getId(objs []interface{}) (string, error) {
+func getObjectId(objs []interface{}) (string, error) {
 	if len(objs) == 0 {
-		return "", fmt.Errorf("getId: No object. %v", objs)
+		return "", fmt.Errorf("getObjectId: No object. %v", objs)
 	}
 	if len(objs) > 1 {
-		return "", fmt.Errorf("getId: Multiple objects. %v", objs)
+		return "", fmt.Errorf("getObjectId: Multiple objects. %v", objs)
 	}
 
 	v := reflect.ValueOf(objs[0])
@@ -70,6 +71,13 @@ func nameToID(client *cloudstack.Client, resourcetype, name string) (id string, 
 		if err != nil {
 			return "", fmt.Errorf("Failed to list serviceoffering '%s': %s", name, err)
 		}
+	case "disk_offering":
+		param := cloudstack.NewListDiskOfferingsParameter()
+		param.Name.Set(name)
+		objs, err = client.ListDiskOfferings(param)
+		if err != nil {
+			return "", fmt.Errorf("Failed to list diskoffering '%s': %s", name, err)
+		}
 	case "template":
 		param := cloudstack.NewListTemplatesParameter("executable")
 		objs, err = client.ListTemplates(param)
@@ -86,9 +94,30 @@ func nameToID(client *cloudstack.Client, resourcetype, name string) (id string, 
 		return "", fmt.Errorf("Can't convert name of %s to id", resourcetype)
 	}
 
-	id, err = getId(filter(toInterfaceSlice(objs), fn).([]interface{}))
+	id, err = getObjectId(filter(toInterfaceSlice(objs), fn).([]interface{}))
 	if err != nil {
 		return "", fmt.Errorf("Faild to get %s id from %s", resourcetype, name)
+	}
+	return id, nil
+}
+
+func getResourceId(d *schema.ResourceData, meta interface{}, resourcetype string) (id string, err error) {
+
+	var ok bool
+	config := meta.(*Config)
+	tmpId, ok := d.GetOk(fmt.Sprintf("%s_id", resourcetype))
+	if ok {
+		id = tmpId.(string)
+	} else {
+		tmpName, ok := d.GetOk(fmt.Sprintf("%s_name", resourcetype))
+		if !ok {
+			return "", fmt.Errorf("%s_id and %s_name are not specified",
+				resourcetype, resourcetype)
+		}
+		id, err = nameToID(config.client, resourcetype, tmpName.(string))
+		if err != nil {
+			return "", err
+		}
 	}
 	return id, nil
 }

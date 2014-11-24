@@ -180,15 +180,17 @@ func resourceVolumeUpdate(d *schema.ResourceData, meta interface{}) error {
 		resourceVolumeRead(d, meta)
 	}
 
+	// Check diskOfferingId and diskOfferingName is not empty not to execute
+	// resizeVolume when the volume is created
 	if d.Get("is_attached").(bool) && d.Get("virtual_machine_id").(string) != "" &&
 		size != d.Get("size").(int) ||
-		diskOfferingId != d.Get("disk_offering_id").(string) ||
-		diskOfferingName != d.Get("disk_offering_name").(string) {
+		(diskOfferingId != "" && diskOfferingId != d.Get("disk_offering_id").(string)) ||
+		(diskOfferingName != "" && diskOfferingName != d.Get("disk_offering_name").(string)) {
 
 		param := cloudstack.NewResizeVolumeParameter(d.Id())
 
-		if diskOfferingId != d.Get("disk_offering_id").(string) ||
-			diskOfferingName != d.Get("disk_offering_name").(string) {
+		if (diskOfferingId != "" && diskOfferingId != d.Get("disk_offering_id").(string)) ||
+			(diskOfferingName != "" && diskOfferingName != d.Get("disk_offering_name").(string)) {
 			diskOfferingId, err := getResourceId(d, meta, "disk_offering")
 			if err != nil {
 				return err

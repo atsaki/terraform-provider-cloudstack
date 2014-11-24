@@ -53,6 +53,30 @@ func resourceVirtualMachine() *schema.Resource {
 				Computed: true,
 				ForceNew: true,
 			},
+			"network_ids": &schema.Schema{
+				Type:     schema.TypeSet,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
+				Set: func(v interface{}) int {
+					return hashcode.String(v.(string))
+				},
+			},
+			"network_names": &schema.Schema{
+				Type:     schema.TypeSet,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
+				Set: func(v interface{}) int {
+					return hashcode.String(v.(string))
+				},
+			},
 			"name": &schema.Schema{
 				Type:     schema.TypeString,
 				Optional: true,
@@ -113,6 +137,10 @@ func resourceVirtualMachine() *schema.Resource {
 							Type:     schema.TypeString,
 							Computed: true,
 						},
+						"network_name": &schema.Schema{
+							Type:     schema.TypeString,
+							Computed: true,
+						},
 						"traffic_type": &schema.Schema{
 							Type:     schema.TypeString,
 							Computed: true,
@@ -168,6 +196,25 @@ func resourceVirtualMachineCreate(d *schema.ResourceData, meta interface{}) erro
 		}
 	}
 
+	var networkIds []string
+	tmpNetworkIds := d.Get("network_ids").(*schema.Set).List()
+	tmpNetworkNames := d.Get("network_names").(*schema.Set).List()
+	if len(tmpNetworkIds) > 0 {
+		networkIds = make([]string, len(tmpNetworkIds))
+		for i, networkId := range tmpNetworkIds {
+			networkIds[i] = networkId.(string)
+		}
+	} else if len(tmpNetworkNames) > 0 {
+		networkIds = make([]string, len(tmpNetworkNames))
+		for i, networkName := range tmpNetworkNames {
+			networkId, err := nameToID(config.client, "network", networkName.(string))
+			if err != nil {
+				return err
+			}
+			networkIds[i] = networkId
+		}
+	}
+
 	param := cloudstack.NewDeployVirtualMachineParameter(
 		serviceOfferingId, templateId, zoneId)
 
@@ -181,6 +228,10 @@ func resourceVirtualMachineCreate(d *schema.ResourceData, meta interface{}) erro
 
 	if d.Get("display_name").(string) != "" {
 		param.DisplayName.Set(d.Get("display_name"))
+	}
+
+	if len(networkIds) > 0 {
+		param.NetworkIds = networkIds
 	}
 
 	if d.Get("security_groups") != nil {
@@ -237,6 +288,8 @@ func resourceVirtualMachineRead(d *schema.ResourceData, meta interface{}) error 
 	d.Set("display_name", vm.DisplayName.String())
 
 	nics := make([]map[string]interface{}, len(vm.Nic))
+	networkIds := make([]string, len(vm.Nic))
+	networkNames := make([]string, len(vm.Nic))
 	for i, nic := range vm.Nic {
 		m := make(map[string]interface{})
 		m["id"] = nic.Id.String()
@@ -246,11 +299,17 @@ func resourceVirtualMachineRead(d *schema.ResourceData, meta interface{}) error 
 		m["mac_address"] = nic.MacAddress.String()
 		m["netmask"] = nic.Netmask.String()
 		m["network_id"] = nic.NetworkId.String()
+		m["network_name"] = nic.NetworkName.String()
 		m["traffic_type"] = nic.TrafficType.String()
-		m["type"] = nic.Type.String
+		m["type"] = nic.Type.String()
 		nics[i] = m
+
+		networkIds[i] = nic.NetworkId.String()
+		networkNames[i] = nic.NetworkName.String()
 	}
 	d.Set("nic", nics)
+	d.Set("network_ids", networkIds)
+	d.Set("network_names", networkNames)
 
 	sgNames := make([]string, len(vm.SecurityGroup))
 	for i, sg := range vm.SecurityGroup {

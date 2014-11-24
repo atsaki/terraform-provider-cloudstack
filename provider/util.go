@@ -63,16 +63,34 @@ func nameToID(client *cloudstack.Client, resourcetype, name string) (id string, 
 		if err != nil {
 			return "", fmt.Errorf("Failed to list serviceoffering '%s': %s", name, err)
 		}
+	case "networkoffering":
+		param := cloudstack.NewListNetworkOfferingsParameter()
+		param.Name.Set(name)
+		objs, err = client.ListNetworkOfferings(param)
+		if err != nil {
+			return "", fmt.Errorf("Failed to list serviceoffering '%s': %s", name, err)
+		}
 	case "template":
 		param := cloudstack.NewListTemplatesParameter("executable")
 		objs, err = client.ListTemplates(param)
 		if err != nil {
 			return "", fmt.Errorf("Failed to list template '%s': %s", name, err)
 		}
+	case "network":
+		param := cloudstack.NewListNetworksParameter()
+		objs, err = client.ListNetworks(param)
+		if err != nil {
+			return "", fmt.Errorf("Failed to list network '%s': %s", name, err)
+		}
 	default:
 		return "", fmt.Errorf("Can't convert name of %s to id", resourcetype)
 	}
-	return getId(filter(toInterfaceSlice(objs), fn).([]interface{}))
+
+	id, err = getId(filter(toInterfaceSlice(objs), fn).([]interface{}))
+	if err != nil {
+		return "", fmt.Errorf("Faild to get %s id from %s", resourcetype, name)
+	}
+	return id, nil
 }
 
 func filter(xs interface{}, fn func(interface{}) bool) interface{} {

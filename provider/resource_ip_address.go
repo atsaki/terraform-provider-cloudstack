@@ -21,12 +21,15 @@ func resourceIpAddress() *schema.Resource {
 				Optional: true,
 				Computed: true,
 			},
-			"network_id": &schema.Schema{
+			"ip_address": &schema.Schema{
 				Type:     schema.TypeString,
-				Optional: true,
 				Computed: true,
 			},
-			"ip_address": &schema.Schema{
+			"is_source_nat": &schema.Schema{
+				Type:     schema.TypeBool,
+				Computed: true,
+			},
+			"network_id": &schema.Schema{
 				Type:     schema.TypeString,
 				Computed: true,
 			},
@@ -50,9 +53,6 @@ func resourceIpAddressCreate(d *schema.ResourceData, meta interface{}) error {
 	param := cloudstack.NewAssociateIpAddressParameter()
 	if d.Get("zone_id").(string) != "" {
 		param.ZoneId.Set(d.Get("zone_id"))
-	}
-	if d.Get("network_id").(string) != "" {
-		param.NetworkId.Set(d.Get("network_id"))
 	}
 
 	ipAddress, err := config.client.AssociateIpAddress(param)
@@ -93,8 +93,9 @@ func resourceIpAddressRead(d *schema.ResourceData, meta interface{}) error {
 	ipAddress := ipAddresses[0]
 
 	d.Set("zone_id", ipAddress.ZoneId.String())
-	d.Set("network_id", ipAddress.NetworkId.String())
 	d.Set("ip_address", ipAddress.IpAddress.String())
+	d.Set("is_source_nat", ipAddress.IsSourceNat.Bool())
+	d.Set("network_id", ipAddress.NetworkId.String())
 	d.Set("is_static_nat", ipAddress.IsStaticNat.Bool())
 
 	if !ipAddress.VirtualMachineId.IsNil() {
@@ -144,10 +145,12 @@ func resourceIpAddressDelete(d *schema.ResourceData, meta interface{}) error {
 		return nil
 	}
 
-	param := cloudstack.NewDisassociateIpAddressParameter(d.Id())
-	_, err := config.client.DisassociateIpAddress(param)
-	if err != nil {
-		return fmt.Errorf("Error disassociate ipaddress: %s", err)
+	if !d.Get("is_source_nat").(bool) {
+		param := cloudstack.NewDisassociateIpAddressParameter(d.Id())
+		_, err := config.client.DisassociateIpAddress(param)
+		if err != nil {
+			return fmt.Errorf("Error disassociate ipaddress: %s", err)
+		}
 	}
 
 	return resourceIpAddressRead(d, meta)

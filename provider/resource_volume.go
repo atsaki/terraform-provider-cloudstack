@@ -223,6 +223,15 @@ func resourceVolumeDelete(d *schema.ResourceData, meta interface{}) error {
 		return nil
 	}
 
+	if d.Get("is_attached").(bool) {
+		param := cloudstack.NewDetachVolumeParameter()
+		param.Id.Set(d.Id())
+		_, err := config.client.DetachVolume(param)
+		if err != nil {
+			return fmt.Errorf("Error detach volume: %s", err)
+		}
+	}
+
 	param := cloudstack.NewDeleteVolumeParameter(d.Id())
 	_, err := config.client.DeleteVolume(param)
 	if err != nil {

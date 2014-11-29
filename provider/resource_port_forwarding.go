@@ -131,7 +131,7 @@ func resourcePortForwardingRuleRead(d *schema.ResourceData, meta interface{}) er
 		fn := func(pf interface{}) bool {
 			return pf.(cloudstack.PortForwardingRule).Id.String() == d.Id()
 		}
-		pfRules = filter(pfRules, fn).([]cloudstack.PortForwardingRule)
+		pfRules = filter(pfRules, fn).([]*cloudstack.PortForwardingRule)
 	}
 
 	if len(pfRules) == 0 {

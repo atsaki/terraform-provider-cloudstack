@@ -164,7 +164,7 @@ func resourceSecurityGroupRead(d *schema.ResourceData, meta interface{}) error {
 		fn := func(sg interface{}) bool {
 			return sg.(cloudstack.SecurityGroup).Id.String() == d.Id()
 		}
-		sgs = filter(sgs, fn).([]cloudstack.SecurityGroup)
+		sgs = filter(sgs, fn).([]*cloudstack.SecurityGroup)
 	}
 
 	if len(sgs) == 0 {

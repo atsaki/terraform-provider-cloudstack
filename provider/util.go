@@ -11,6 +11,14 @@ import (
 
 func equalName(obj interface{}, name string) bool {
 	v := reflect.ValueOf(obj)
+
+	for {
+		if v.Kind() != reflect.Ptr {
+			break
+		}
+		v = v.Elem()
+	}
+
 	if v.Kind() != reflect.Struct {
 		panic("obj must be struct")
 	}
@@ -27,7 +35,8 @@ func getObjectId(objs []interface{}) (string, error) {
 	}
 
 	v := reflect.ValueOf(objs[0])
-	return v.FieldByName("Id").Interface().(cloudstack.ID).String(), nil
+	// type of v is expected to be pointer to resource
+	return v.Elem().FieldByName("Id").Interface().(cloudstack.ID).String(), nil
 }
 
 func toInterfaceSlice(objs interface{}) []interface{} {

@@ -82,7 +82,7 @@ func resourceIpAddressRead(d *schema.ResourceData, meta interface{}) error {
 		fn := func(ip interface{}) bool {
 			return ip.(cloudstack.PublicIpAddress).Id.String() == d.Id()
 		}
-		ipAddresses = filter(ipAddresses, fn).([]cloudstack.PublicIpAddress)
+		ipAddresses = filter(ipAddresses, fn).([]*cloudstack.PublicIpAddress)
 	}
 
 	if len(ipAddresses) == 0 {

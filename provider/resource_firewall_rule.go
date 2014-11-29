@@ -119,7 +119,7 @@ func resourceFirewallRuleRead(d *schema.ResourceData, meta interface{}) error {
 		fn := func(fw interface{}) bool {
 			return fw.(cloudstack.FirewallRule).Id.String() == d.Id()
 		}
-		fwRules = filter(fwRules, fn).([]cloudstack.FirewallRule)
+		fwRules = filter(fwRules, fn).([]*cloudstack.FirewallRule)
 	}
 
 	if len(fwRules) == 0 {

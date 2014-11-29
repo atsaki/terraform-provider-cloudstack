@@ -257,7 +257,7 @@ func resourceVirtualMachineRead(d *schema.ResourceData, meta interface{}) error 
 		fn := func(vm interface{}) bool {
 			return vm.(cloudstack.VirtualMachine).Id.String() == d.Id()
 		}
-		vms = filter(vms, fn).([]cloudstack.VirtualMachine)
+		vms = filter(vms, fn).([]*cloudstack.VirtualMachine)
 	}
 
 	if len(vms) == 0 {

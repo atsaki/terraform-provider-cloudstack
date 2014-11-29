@@ -104,6 +104,11 @@ func resourceVirtualMachine() *schema.Resource {
 					return hashcode.String(v.(string))
 				},
 			},
+			"user_data": &schema.Schema{
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+			},
 			"nic": &schema.Schema{
 				Type:     schema.TypeList,
 				Computed: true,
@@ -208,6 +213,10 @@ func resourceVirtualMachineCreate(d *schema.ResourceData, meta interface{}) erro
 
 	if d.Get("display_name").(string) != "" {
 		param.DisplayName.Set(d.Get("display_name"))
+	}
+
+	if d.Get("user_data").(string) != "" {
+		param.UserData.Set(d.Get("user_data"))
 	}
 
 	if len(networkIds) > 0 {

@@ -112,7 +112,7 @@ func resourceVolumeRead(d *schema.ResourceData, meta interface{}) error {
 		}
 
 		fn := func(vol interface{}) bool {
-			return vol.(cloudstack.Volume).Id.String() == d.Id()
+			return vol.(*cloudstack.Volume).Id.String() == d.Id()
 		}
 		volumes = filter(volumes, fn).([]*cloudstack.Volume)
 	}

@@ -125,7 +125,7 @@ func resourceNetworkRead(d *schema.ResourceData, meta interface{}) error {
 		}
 
 		fn := func(nw interface{}) bool {
-			return nw.(cloudstack.Network).Id.String() == d.Id()
+			return nw.(*cloudstack.Network).Id.String() == d.Id()
 		}
 		nws = filter(nws, fn).([]*cloudstack.Network)
 	}

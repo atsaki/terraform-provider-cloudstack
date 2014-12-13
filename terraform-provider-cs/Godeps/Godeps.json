@@ -1,5 +1,5 @@
 {
-	"ImportPath": "github.com/atsaki/terraform-provider-cloudstack",
+	"ImportPath": "github.com/atsaki/terraform-provider-cloudstack/terraform-provider-cs",
 	"GoVersion": "go1.3",
 	"Deps": [
 		{
@@ -9,7 +9,7 @@
 		},
 		{
 			"ImportPath": "github.com/atsaki/golang-cloudstack-library",
-			"Rev": "c84bcc2cbb71866edf646b5d1c35a3470cfa6b1d"
+			"Rev": "3c521013420b01129b52e8f42ea92206cdead985"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/hcl",

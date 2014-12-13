@@ -1,12 +1,12 @@
 package main
 
 import (
-	cloudstack "github.com/atsaki/terraform-provider-cloudstack/provider"
+	cs "github.com/atsaki/terraform-provider-cloudstack/terraform-provider-cs/provider"
 	"github.com/hashicorp/terraform/plugin"
 )
 
 func main() {
 	plugin.Serve(&plugin.ServeOpts{
-		ProviderFunc: cloudstack.Provider,
+		ProviderFunc: cs.Provider,
 	})
 }

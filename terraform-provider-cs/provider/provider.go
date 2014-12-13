@@ -26,14 +26,14 @@ func Provider() terraform.ResourceProvider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
-			"cloudstack_firewall_rule":        resourceFirewallRule(),
-			"cloudstack_ip_address":           resourceIpAddress(),
-			"cloudstack_load_balancer_rule":   resourceLoadBalancerRule(),
-			"cloudstack_network":              resourceNetwork(),
-			"cloudstack_port_forwarding_rule": resourcePortForwardingRule(),
-			"cloudstack_security_group":       resourceSecurityGroup(),
-			"cloudstack_virtual_machine":      resourceVirtualMachine(),
-			"cloudstack_volume":               resourceVolume(),
+			"cs_firewall_rule":        resourceFirewallRule(),
+			"cs_ip_address":           resourceIpAddress(),
+			"cs_load_balancer_rule":   resourceLoadBalancerRule(),
+			"cs_network":              resourceNetwork(),
+			"cs_port_forwarding_rule": resourcePortForwardingRule(),
+			"cs_security_group":       resourceSecurityGroup(),
+			"cs_virtual_machine":      resourceVirtualMachine(),
+			"cs_volume":               resourceVolume(),
 		},
 
 		ConfigureFunc: providerConfigure,

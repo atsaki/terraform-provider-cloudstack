@@ -23,5 +23,5 @@ _testmain.go
 *.test
 *.prof
 
-Godeps/Readme
-Godeps/_workspace
+Readme
+_workspace

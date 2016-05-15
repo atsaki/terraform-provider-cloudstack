@@ -1,5 +1,7 @@
 # Terraform CloudStack Provider
 
+[![CircleCI](https://circleci.com/gh/atsaki/terraform-provider-cloudstack.svg?style=svg)](https://circleci.com/gh/atsaki/terraform-provider-cloudstack)
+
 This is a CloudStack provider for [terraform](http://www.terraform.io/).
 
 **Now Terraform has builtin CloudStack provider. You may want to use it.** 

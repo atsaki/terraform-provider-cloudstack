@@ -105,7 +105,7 @@ func nameToID(client *cloudstack.Client, resourcetype, name string) (id string, 
 
 	id, err = getObjectId(filter(toInterfaceSlice(objs), fn).([]interface{}))
 	if err != nil {
-		return "", fmt.Errorf("Faild to get %s id from %s", resourcetype, name)
+		return "", fmt.Errorf("Faild to get %s id from %s: %s", resourcetype, name, err)
 	}
 	return id, nil
 }

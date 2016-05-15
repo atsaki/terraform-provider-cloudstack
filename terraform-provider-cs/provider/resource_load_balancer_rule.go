@@ -19,12 +19,10 @@ func resourceLoadBalancerRule() *schema.Resource {
 			"algorithm": &schema.Schema{
 				Type:     schema.TypeString,
 				Required: true,
-				Computed: true,
 			},
 			"name": &schema.Schema{
 				Type:     schema.TypeString,
 				Required: true,
-				Computed: true,
 			},
 			"private_port": &schema.Schema{
 				Type:     schema.TypeInt,

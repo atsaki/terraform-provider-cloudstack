@@ -1,0 +1,4 @@
+package: github.com/atsaki/terraform-provider-cloudstack
+import:
+- package: github.com/atsaki/golang-cloudstack-library
+- package: github.com/hashicorp/terraform

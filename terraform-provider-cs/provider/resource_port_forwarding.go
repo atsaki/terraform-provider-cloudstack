@@ -71,6 +71,7 @@ func resourcePortForwardingRule() *schema.Resource {
 				Type:     schema.TypeBool,
 				Default:  false,
 				Optional: true,
+				ForceNew: true,
 			},
 		},
 	}

@@ -27,16 +27,26 @@ func equalName(obj interface{}, name string) bool {
 }
 
 func getObjectId(objs []interface{}) (string, error) {
-	if len(objs) == 0 {
-		return "", fmt.Errorf("getObjectId: No object. %v", objs)
-	}
-	if len(objs) > 1 {
-		return "", fmt.Errorf("getObjectId: Multiple objects. %v", objs)
+	idset := map[string]bool{}
+	for _, obj := range objs {
+		// type of v is expected to be pointer to resource
+		v := reflect.ValueOf(obj)
+		id := v.Elem().FieldByName("Id").Interface().(cloudstack.ID).String()
+		idset[id] = true
 	}
 
-	v := reflect.ValueOf(objs[0])
-	// type of v is expected to be pointer to resource
-	return v.Elem().FieldByName("Id").Interface().(cloudstack.ID).String(), nil
+	ids := []string{}
+	for id := range idset {
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		return "", fmt.Errorf("getObjectId: No ID associated")
+	}
+	if len(ids) > 1 {
+		return "", fmt.Errorf("getObjectId: Multiple IDs associated. %v", ids)
+	}
+
+	return ids[0], nil
 }
 
 func toInterfaceSlice(objs interface{}) []interface{} {
